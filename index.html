@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Garage WOD</title>
+<meta name="theme-color" content="#171B21">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6E9ED; --surface:#F7F8FA; --surface-2:#EDF0F3; --ink:#1D232B; --muted:#5F6976; --line:#CBD1D8;
+  --green:#2F8F5B; --blue:#2463B8; --chalk:#D9D6CC; --yellow:#E2AE24; --red:#C9353B;
+  --on-accent:#FFFFFF;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#171B21; --surface:#222831; --surface-2:#2A313B; --ink:#E9EDF1; --muted:#9AA4B0; --line:#363F4A;
+    --green:#3FA86D; --blue:#4A86D8; --chalk:#CFCBBE; --yellow:#EDBC3A; --red:#E0484E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#171B21; --surface:#222831; --surface-2:#2A313B; --ink:#E9EDF1; --muted:#9AA4B0; --line:#363F4A;
+  --green:#3FA86D; --blue:#4A86D8; --chalk:#CFCBBE; --yellow:#EDBC3A; --red:#E0484E;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.wrap{max-width:560px;margin:0 auto;padding:16px 18px 96px}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:800;font-size:22px;letter-spacing:.02em}
+.seg{display:flex;background:var(--surface-2);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:999px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+/* week strip of plates */
+.strip{display:flex;justify-content:space-between;gap:6px;margin:14px 0 22px}
+.mini{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:0}
+.mini .plate{width:44px;height:44px}
+.mini span{font-size:13px;font-weight:600;color:var(--muted)}
+.mini[aria-current="true"] span{color:var(--ink)}
+.mini[aria-current="true"] .plate{transform:scale(1.12)}
+
+/* plate disc */
+.plate{--c:var(--blue);position:relative;border-radius:50%;background:var(--c);flex:none;transition:transform .2s}
+.plate::before{content:"";position:absolute;inset:16%;border-radius:50%;border:2px solid rgba(255,255,255,.35)}
+.plate::after{content:"";position:absolute;inset:40%;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 2px rgba(0,0,0,.18)}
+.plate.hollow{background:transparent;box-shadow:inset 0 0 0 4px var(--c)}
+.plate.hollow::before{border-color:var(--c);opacity:.4}
+.plate .tick{position:absolute;inset:0;display:grid;place-items:center;z-index:2;color:var(--on-accent);font-weight:800;font-size:15px}
+.t-movement{--c:var(--green)} .t-barbell{--c:var(--blue)} .t-yoga{--c:var(--chalk)} .t-body{--c:var(--yellow)} .t-heavy{--c:var(--red)}
+.t-yoga .tick,.t-body .tick{color:#1D232B}
+
+/* hero */
+.hero{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;margin-bottom:22px}
+.hero .when{font-weight:600;color:var(--muted);font-size:15px}
+.hero h1{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:800;font-size:clamp(52px,15vw,84px);line-height:.88;margin:6px 0 10px;letter-spacing:-.01em}
+.hero .sub{font-size:17px;color:var(--muted);max-width:30ch}
+.hero .big{width:clamp(108px,30vw,150px);height:clamp(108px,30vw,150px);animation:spin-in .9s cubic-bezier(.2,.8,.2,1) both}
+.hero .big .tick{font-family:"Barlow Condensed",sans-serif;font-size:22px;font-weight:800;letter-spacing:.04em}
+@keyframes spin-in{from{transform:rotate(-200deg) translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.hero .big{animation:none}.plate{transition:none}}
+
+/* blocks */
+.block{background:var(--surface);border-radius:14px;padding:16px 18px;margin-bottom:12px;border-left:6px solid var(--c,var(--line))}
+.block h2{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:24px;margin:0 0 6px;line-height:1.1}
+.block .fmt{font-weight:600;color:var(--muted);font-size:15px;margin:0 0 8px}
+.block ul{margin:0;padding-left:20px}
+.block li{margin:3px 0}
+.block .note{margin:10px 0 0;font-size:14px;color:var(--muted)}
+.go{margin-top:12px;display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);padding:10px 18px;font-weight:600}
+.go svg{width:14px;height:14px}
+
+/* log */
+.log{background:var(--surface);border-radius:14px;padding:16px 18px;margin-top:20px}
+.log label{display:block;font-weight:600;margin-bottom:6px}
+.log input{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px}
+.log .row{display:flex;gap:10px;margin-top:12px}
+.done-btn{flex:1;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:17px;background:var(--c,var(--blue));color:var(--on-accent)}
+.t-yoga .done-btn,.t-body .done-btn{color:#1D232B}
+.done-btn[aria-pressed="true"]{background:var(--surface-2);color:var(--ink);box-shadow:inset 0 0 0 2px var(--c)}
+.saved{font-size:13px;color:var(--muted);margin-top:8px;min-height:1.2em}
+
+/* rest */
+.rest{background:var(--surface);border-radius:14px;padding:22px 18px;margin-bottom:16px}
+.rest h2{font-family:"Barlow Condensed",sans-serif;font-size:30px;margin:0 0 4px}
+.link{border:0;background:none;padding:0;color:var(--blue);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+
+/* plan grid */
+.week{margin-bottom:22px}
+.week h2{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:26px;margin:0 0 2px}
+.week .focus{color:var(--muted);font-size:15px;margin:0 0 10px}
+.day{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:0;background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.day .plate{width:38px;height:38px}
+.day b{display:block;font-weight:600}
+.day small{color:var(--muted);font-size:14px}
+.day[aria-current="true"]{box-shadow:inset 0 0 0 2px var(--ink)}
+
+.settings{margin-top:28px;background:var(--surface);border-radius:14px;padding:16px 18px}
+.settings label{display:block;font-weight:600;margin-bottom:6px}
+.settings input{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px}
+.settings p{color:var(--muted);font-size:14px;margin:8px 0 0}
+.back{border:0;background:none;padding:6px 0;font-weight:600;color:var(--muted)}
+
+/* timer overlay */
+.timer{position:fixed;inset:0;z-index:50;background:var(--c,var(--blue));color:var(--on-accent);display:none;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 20px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.timer.on{display:flex}
+.timer.t-yoga,.timer.t-body{color:#1D232B}
+.timer .tt{font-weight:600;font-size:16px;opacity:.85}
+.timer .phase{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:clamp(26px,7vw,40px);line-height:1.1;margin-top:6px;min-height:2.2em}
+.timer .clock{flex:1;display:grid;place-items:center;font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:clamp(110px,34vw,240px);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.timer .meta{text-align:center;font-weight:600;font-size:18px;opacity:.85;margin-bottom:18px;min-height:1.5em}
+.timer .ctrl{display:flex;gap:10px}
+.timer .ctrl button{flex:1;border:0;border-radius:14px;padding:16px;font-weight:700;font-size:18px;background:rgba(0,0,0,.22);color:inherit}
+.timer .ctrl .primary{background:rgba(255,255,255,.92);color:#1D232B;flex:2}
+.timer .x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;border:0;background:rgba(0,0,0,.18);color:inherit;width:44px;height:44px;border-radius:50%;font-size:22px;line-height:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">Garage WOD</div>
+    <div class="seg" role="group" aria-label="View">
+      <button id="tabToday" aria-pressed="true">Today</button>
+      <button id="tabPlan" aria-pressed="false">Plan</button>
+    </div>
+  </div>
+  <main id="app"></main>
+</div>
+
+<div class="timer" id="timer" role="dialog" aria-modal="true" aria-label="Workout timer">
+  <button class="x" id="tClose" aria-label="Close timer">×</button>
+  <div class="tt" id="tTitle"></div>
+  <div class="phase" id="tPhase"></div>
+  <div class="clock" id="tClock">0:00</div>
+  <div class="meta" id="tMeta"></div>
+  <div class="ctrl">
+    <button id="tReset">Reset</button>
+    <button class="primary" id="tStart">Start</button>
+  </div>
+</div>
+
+<script>
+/* ---------- program ---------- */
+const TYPES = {
+  movement:{label:"Movement", cls:"t-movement"},
+  barbell:{label:"HIIT: barbell + kettlebell", cls:"t-barbell"},
+  yoga:{label:"Yoga", cls:"t-yoga"},
+  body:{label:"HIIT: bodyweight", cls:"t-body"},
+  heavy:{label:"Heavy strength", cls:"t-heavy"}
+};
+const DAYNAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+const DAYTYPES = ["movement","barbell","yoga","body","heavy"];
+const WEEKS = [
+  {name:"Week 1", focus:"Find your starting weights and pace."},
+  {name:"Week 2", focus:"Add a little weight and volume."},
+  {name:"Week 3", focus:"Heaviest week of the cycle."},
+  {name:"Week 4", focus:"Back off, recover, and retest."}
+];
+
+const warmRope = (extra)=>({name:"Warm-up", fmt:"8 minutes", lines:["3 min jump rope, easy"].concat(extra)});
+
+const PROGRAM = [
+ // ---- week 1
+ [
+  {title:"Easy cardio", sub:"30 minutes at a pace you could talk through.", blocks:[
+    {name:"Steady state", fmt:"30 minutes", lines:["Elliptical or brisk walk","Keep your breathing controlled the whole time"], timer:{mode:"countdown",min:30}},
+    {name:"Cooldown", fmt:"5 minutes", lines:["Calf, quad and hip flexor stretch, 45 sec each side"]}]},
+  {title:"Thruster grind", sub:"Snatch practice, then a 15-minute AMRAP.", blocks:[
+    warmRope(["2 rounds: 10 goblet squats, 10 kettlebell halos, 10 empty-bar good mornings"]),
+    {name:"Power snatch", fmt:"EMOM 10 minutes", lines:["2 power snatches every minute","Light to moderate, about 75–95 lb"], timer:{mode:"emom",min:10,stations:["2 power snatches"]}},
+    {name:"Workout", fmt:"AMRAP 15 minutes", lines:["10 kettlebell swings (40 lb)","8 thrusters (75–95 lb)","50 single-unders"], timer:{mode:"amrap",min:15}, note:"Log rounds plus extra reps."}]},
+  {title:"Hips and hamstrings", sub:"30 minutes of slow, held stretching.", blocks:[
+    {name:"Warm-up", fmt:"5 minutes", lines:["3 slow sun salutations","Cat-cow, 10 breaths"]},
+    {name:"Holds", fmt:"25 minutes", lines:["Low lunge, 60 sec each side","Lizard, 60 sec each side","Pigeon, 90 sec each side","Half split, 60 sec each side","Seated forward fold, 2 min","Happy baby, 60 sec","Child’s pose, 2 min"], timer:{mode:"countdown",min:30}}]},
+  {title:"Bodyweight chipper", sub:"Five rounds for time, then a plank finisher.", blocks:[
+    warmRope(["2 rounds: 10 air squats, 10 push-ups, 20 mountain climbers"]),
+    {name:"Workout", fmt:"5 rounds for time, 25 minute cap", lines:["10 burpees","15 jump squats","8 Bulgarian split squats each leg (back foot on bench)","15 sit-ups","50 single-unders"], timer:{mode:"fortime",cap:25}, note:"Log your finish time."},
+    {name:"Finisher", fmt:"Tabata, 4 minutes", lines:["Plank hold, 20 sec on, 10 sec off, 8 rounds"], timer:{mode:"tabata",work:20,rest:10,rounds:8,labels:["Plank"]}}]},
+  {title:"Squat and bench", sub:"Find a heavy, clean set of five.", blocks:[
+    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses, 10 good mornings"]},
+    {name:"Back squat", fmt:"5 × 5", lines:["Build to a weight you can move for 5 clean reps","Rest 2–3 min between sets"]},
+    {name:"Bench press", fmt:"5 × 5", lines:["Same approach: heavy but clean","Rest 2–3 min"]},
+    {name:"Barbell RDL", fmt:"3 × 8", lines:["Moderate weight, slow on the way down"]},
+    {name:"Finisher", fmt:"3 rounds", lines:["40-yard kettlebell suitcase carry, each arm"], note:"Write down your squat and bench weights. Next week builds from them."}]}
+ ],
+ // ---- week 2
+ [
+  {title:"Longer walk", sub:"40 minutes, steady and easy.", blocks:[
+    {name:"Steady state", fmt:"40 minutes", lines:["Elliptical or brisk walk","Slightly faster than last week"], timer:{mode:"countdown",min:40}},
+    {name:"Cooldown", fmt:"5 minutes", lines:["Hamstring and hip stretch, 45 sec each side"]}]},
+  {title:"Push press ladder", sub:"Heavy triples, then a fast 21-15-9.", blocks:[
+    warmRope(["2 rounds: 10 kettlebell deadlifts, 10 empty-bar push presses, 10 air squats"]),
+    {name:"Push press", fmt:"5 × 3", lines:["Build across sets to a heavy triple","Rest 90 sec"]},
+    {name:"Workout", fmt:"21-15-9 for time, 15 minute cap", lines:["Kettlebell swings (40 lb)","Burpees","Thrusters (75–95 lb)"], timer:{mode:"fortime",cap:15}, note:"Do 21 of each, then 15, then 9."}]},
+  {title:"Spine and shoulders", sub:"30 minutes to open up your back.", blocks:[
+    {name:"Warm-up", fmt:"5 minutes", lines:["Cat-cow, 10 breaths","3 sun salutations"]},
+    {name:"Holds", fmt:"25 minutes", lines:["Thread the needle, 60 sec each side","Puppy pose, 90 sec","Cobra to child’s pose, 10 slow reps","Supine twist, 90 sec each side","Eagle arms, 45 sec each side","Supported fish (over a rolled towel), 2 min","Child’s pose, 2 min"], timer:{mode:"countdown",min:30}}]},
+  {title:"Four-station EMOM", sub:"20 minutes, a new station every minute.", blocks:[
+    warmRope(["2 rounds: 10 air squats, 10 push-ups, 10 sit-ups"]),
+    {name:"Workout", fmt:"EMOM 20 minutes (5 rounds)", lines:["Minute 1: 10 burpees","Minute 2: 15 air squats","Minute 3: 12 push-ups","Minute 4: 40 jump rope"], timer:{mode:"emom",min:20,stations:["10 burpees","15 air squats","12 push-ups","40 jump rope"]}},
+    {name:"Finisher", fmt:"Tabata, 4 minutes", lines:["Mountain climbers, 20 sec on, 10 sec off, 8 rounds"], timer:{mode:"tabata",work:20,rest:10,rounds:8,labels:["Mountain climbers"]}}]},
+  {title:"Heavier fives", sub:"Add weight to last week’s numbers.", blocks:[
+    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses"]},
+    {name:"Back squat", fmt:"5 × 5", lines:["Last week’s weight plus 5–10 lb","Rest 2–3 min"]},
+    {name:"Bench press", fmt:"5 × 5", lines:["Last week’s weight plus 5 lb","Rest 2–3 min"]},
+    {name:"Bulgarian split squat", fmt:"3 × 8 each leg", lines:["Bodyweight, or hold the kettlebell goblet-style"]},
+    {name:"Barbell row", fmt:"3 × 8", lines:["Moderate, pause at the top"]}]}
+ ],
+ // ---- week 3
+ [
+  {title:"Walk with pickups", sub:"45 minutes with five short pushes.", blocks:[
+    {name:"Steady state", fmt:"45 minutes", lines:["Elliptical or brisk walk","Every 8 minutes, go hard for 1 minute, 5 times total"], timer:{mode:"countdown",min:45}},
+    {name:"Cooldown", fmt:"5 minutes", lines:["Easy pace and full-body stretch"]}]},
+  {title:"Clean and press", sub:"Hang cleans, then four hard rounds.", blocks:[
+    warmRope(["2 rounds: 10 goblet squats, 10 empty-bar hang cleans, 10 push-ups"]),
+    {name:"Hang power clean", fmt:"EMOM 12 minutes", lines:["3 hang power cleans every minute","Moderate, crisp reps"], timer:{mode:"emom",min:12,stations:["3 hang power cleans"]}},
+    {name:"Workout", fmt:"4 rounds for time, 18 minute cap", lines:["12 kettlebell goblet squats","10 shoulder-to-overhead (95 lb)","15 kettlebell swings","60 single-unders"], timer:{mode:"fortime",cap:18}}]},
+  {title:"Full-body flow", sub:"40 minutes, moving and holding.", blocks:[
+    {name:"Flow", fmt:"15 minutes", lines:["5 sun salutations","Warrior 1 to warrior 2 to triangle, 3 breaths each pose, both sides","Chair pose, 5 breaths, 3 times"]},
+    {name:"Holds", fmt:"25 minutes", lines:["Pigeon, 2 min each side","Lizard, 60 sec each side","Thread the needle, 60 sec each side","Seated forward fold, 2 min","Supine twist, 90 sec each side","Child’s pose, 3 min"], timer:{mode:"countdown",min:40}}]},
+  {title:"Twenty-minute AMRAP", sub:"Steady pace, no long breaks.", blocks:[
+    warmRope(["2 rounds: 10 air squats, 10 push-ups, 20 mountain climbers"]),
+    {name:"Workout", fmt:"AMRAP 20 minutes", lines:["5 burpees","10 push-ups","6 Bulgarian split squats each leg","15 sit-ups","15 jump squats"], timer:{mode:"amrap",min:20}, note:"Log rounds plus extra reps."}]},
+  {title:"Heavy triples", sub:"Fewer reps, more weight.", blocks:[
+    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses, 10 deadlifts"]},
+    {name:"Back squat", fmt:"5 × 3", lines:["Week 2 weight plus 10–15 lb","Rest 3 min"]},
+    {name:"Bench press", fmt:"5 × 3", lines:["Week 2 weight plus 10 lb","Rest 3 min"]},
+    {name:"Deadlift", fmt:"3 × 5", lines:["Moderately heavy, reset each rep"]},
+    {name:"Finisher", fmt:"3 rounds", lines:["40-yard kettlebell suitcase carry, each arm"]}]}
+ ],
+ // ---- week 4
+ [
+  {title:"Recovery walk", sub:"30 easy minutes plus mobility.", blocks:[
+    {name:"Steady state", fmt:"30 minutes", lines:["Elliptical or walk, truly easy"], timer:{mode:"countdown",min:30}},
+    {name:"Mobility", fmt:"10 minutes", lines:["Pigeon, 60 sec each side","Low lunge, 60 sec each side","Child’s pose, 2 min"]}]},
+  {title:"Thruster test", sub:"A short, fast benchmark to compare next cycle.", blocks:[
+    warmRope(["2 rounds: 10 empty-bar thrusters, 10 burpees, 10 kettlebell swings"]),
+    {name:"Benchmark", fmt:"21-15-9 for time, 12 minute cap", lines:["Thrusters (65–95 lb)","Burpees"], timer:{mode:"fortime",cap:12}, note:"Log your time and weight. You’ll repeat this in week 4 of the next cycle."},
+    {name:"Finisher", fmt:"3 rounds", lines:["15 kettlebell swings","Rest 60 sec"]}]},
+  {title:"Long holds", sub:"35 minutes of deep, quiet stretching.", blocks:[
+    {name:"Holds", fmt:"35 minutes", lines:["Child’s pose, 3 min","Pigeon, 2 min each side","Half split, 90 sec each side","Butterfly, 3 min","Supine twist, 2 min each side","Legs up the wall, 5 min"], timer:{mode:"countdown",min:35}}]},
+  {title:"Tabata ladder", sub:"Four Tabatas, one minute rest between.", blocks:[
+    warmRope(["2 rounds: 10 air squats, 10 push-ups"]),
+    {name:"Workout", fmt:"4 Tabatas (20 sec on, 10 sec off, 8 rounds each)", lines:["Jump rope","Push-ups","Jump squats","Sit-ups","1 minute rest between each Tabata"], timer:{mode:"tabata",work:20,rest:10,rounds:8,sets:4,setRest:60,labels:["Jump rope","Push-ups","Jump squats","Sit-ups"]}, note:"Log your lowest round count for each movement."}]},
+  {title:"Deload day", sub:"Lighter weight, perfect reps.", blocks:[
+    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses"]},
+    {name:"Back squat", fmt:"3 × 5", lines:["About 80% of your week 3 weight"]},
+    {name:"Bench press", fmt:"3 × 5", lines:["About 80% of your week 3 weight"]},
+    {name:"Barbell RDL", fmt:"3 × 8", lines:["Moderate"]},
+    {name:"Kettlebell swings", fmt:"3 × 15", lines:["Rest 60 sec"], note:"Next cycle starts Monday. Begin week 1 a little heavier than last time."}]}
+ ]
+];
+
+/* ---------- storage ---------- */
+const LS_KEY = "garage-wod-v1";
+let store = {start:"2026-11-02", done:{}, results:{}};
+try{ const raw = localStorage.getItem(LS_KEY); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
+}
+
+/* ---------- dates ---------- */
+const DAY = 86400000;
+function parseDate(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
+function mondayOf(dt){ const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
+function where(dt){
+  const wd = (dt.getDay()+6)%7; // Mon 0
+  const weeks = Math.round((mondayOf(dt) - mondayOf(parseDate(store.start))) / (7*DAY));
+  const week = ((weeks % 4) + 4) % 4;
+  const cycle = Math.floor(Math.max(weeks,0)/4) + 1;
+  return {week, day: wd <= 4 ? wd : null, cycle, before: weeks < 0};
+}
+const keyOf = (w,d,c)=>"c"+c+"w"+(w+1)+"d"+(d+1);
+
+/* ---------- views ---------- */
+const app = document.getElementById("app");
+let view = {mode:"today", w:null, d:null};
+
+function plateHTML(type, size, text, hollow){
+  return `<div class="plate ${TYPES[type].cls}${hollow?" hollow":""}" style="${size?`width:${size}px;height:${size}px`:""}">${text?`<div class="tick">${text}</div>`:""}</div>`;
+}
+const playIcon = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>';
+
+function workoutHTML(w, d, label, cycle){
+  const wo = PROGRAM[w][d], type = DAYTYPES[d], k = keyOf(w,d,cycle);
+  const done = !!store.done[k];
+  let h = `<section class="hero">
+    <div><div class="when">${label}</div><h1>${wo.title}</h1><div class="sub">${wo.sub}</div></div>
+    <div class="plate big ${TYPES[type].cls}"><div class="tick">${DAYNAMES[d].slice(0,3)}</div></div>
+  </section>`;
+  wo.blocks.forEach((b,i)=>{
+    h += `<article class="block ${TYPES[type].cls}"><h2>${b.name}</h2><p class="fmt">${b.fmt}</p><ul>${b.lines.map(l=>`<li>${l}</li>`).join("")}</ul>`;
+    if(b.note) h += `<p class="note">${b.note}</p>`;
+    if(b.timer) h += `<button class="go" data-timer="${w}-${d}-${i}">${playIcon}Start timer</button>`;
+    h += `</article>`;
+  });
+  h += `<section class="log ${TYPES[type].cls}">
+    <label for="res">Your result</label>
+    <input id="res" placeholder="Time, rounds, or weights used" autocomplete="off">
+    <div class="row"><button class="done-btn" id="doneBtn" aria-pressed="${done}">${done?"Completed":"Mark complete"}</button></div>
+    <div class="saved" id="savedMsg" aria-live="polite"></div>
+  </section>`;
+  return {h, k};
+}
+
+function stripHTML(w, curDay, cycle){
+  return `<nav class="strip" aria-label="This week">` + DAYTYPES.map((t,d)=>{
+    const done = store.done[keyOf(w,d,cycle)];
+    return `<button class="mini" data-open="${w}-${d}" aria-current="${d===curDay}" aria-label="${DAYNAMES[d]}${done?", completed":""}">${plateHTML(t,0,done?"✓":"",!done)}<span>${DAYNAMES[d].slice(0,3)}</span></button>`;
+  }).join("") + `</nav>`;
+}
+
+function render(){
+  document.getElementById("tabToday").setAttribute("aria-pressed", view.mode!=="plan");
+  document.getElementById("tabPlan").setAttribute("aria-pressed", view.mode==="plan");
+  const now = new Date(), here = where(now), cycle = Math.max(here.cycle,1);
+  let html = "", k = null;
+
+  if(view.mode === "plan"){
+    WEEKS.forEach((wk,w)=>{
+      html += `<section class="week"><h2>${wk.name}</h2><p class="focus">${wk.focus}</p>`;
+      DAYTYPES.forEach((t,d)=>{
+        const done = store.done[keyOf(w,d,cycle)];
+        const isToday = !here.before && here.week===w && here.day===d;
+        html += `<button class="day" data-open="${w}-${d}" aria-current="${isToday}">${plateHTML(t,0,done?"✓":"",!done)}<div><b>${DAYNAMES[d]}: ${PROGRAM[w][d].title}</b><small>${TYPES[t].label}</small></div></button>`;
+      });
+      html += `</section>`;
+    });
+    html += `<section class="settings"><label for="startIn">Week 1 starts on</label>
+      <input type="date" id="startIn" value="${store.start}">
+      <p>Pick a Monday. The four weeks repeat after week 4, and you’re on cycle ${cycle}.</p></section>`;
+    app.innerHTML = html;
+    const si = document.getElementById("startIn");
+    si.addEventListener("change", ()=>{ if(si.value){ const m = mondayOf(parseDate(si.value)); store.start = `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,"0")}-${String(m.getDate()).padStart(2,"0")}`; save(); render(); }});
+  } else if(view.mode === "detail"){
+    const r = workoutHTML(view.w, view.d, `${WEEKS[view.w].name}, ${DAYNAMES[view.d]}`, cycle);
+    html = `<button class="back" id="backBtn">‹ Back</button>` + stripHTML(view.w, view.d, cycle) + r.h; k = r.k;
+    app.innerHTML = html;
+    document.getElementById("backBtn").onclick = ()=>{ view = {mode:view.from||"today"}; render(); };
+  } else {
+    const w = here.before ? 0 : here.week;
+    if(here.day === null){
+      const nextW = (w+1)%4;
+      html = stripHTML(w, -1, cycle) + `<section class="rest"><h2>Rest day</h2><p>Nothing scheduled today. Monday is <b>${PROGRAM[nextW][0].title.toLowerCase()}</b>.</p><button class="link" data-open="${nextW}-0">Preview Monday</button></section>`;
+      app.innerHTML = html;
+    } else {
+      const d = here.before ? 0 : here.day;
+      const r = workoutHTML(w, d, here.before ? "Your first workout" : `${WEEKS[w].name}, today`, cycle);
+      html = stripHTML(w, d, cycle) + r.h; k = r.k;
+      app.innerHTML = html;
+    }
+  }
+
+  app.querySelectorAll("[data-open]").forEach(b=>b.onclick = ()=>{
+    const [w,d] = b.dataset.open.split("-").map(Number);
+    view = {mode:"detail", w, d, from: view.mode==="plan" ? "plan" : (view.from||"today")};
+    render(); window.scrollTo(0,0);
+  });
+  app.querySelectorAll("[data-timer]").forEach(b=>b.onclick = ()=>{
+    const [w,d,i] = b.dataset.timer.split("-").map(Number);
+    openTimer(PROGRAM[w][d], PROGRAM[w][d].blocks[i], DAYTYPES[d]);
+  });
+  if(k){
+    const res = document.getElementById("res"), btn = document.getElementById("doneBtn"), msg = document.getElementById("savedMsg");
+    res.value = store.results[k] || "";
+    res.addEventListener("input", ()=>{ store.results[k] = res.value; save(); msg.textContent = "Result saved"; });
+    btn.onclick = ()=>{
+      store.done[k] = !store.done[k];
+      if(!store.done[k]) delete store.done[k];
+      save(); render();
+      const m = document.getElementById("savedMsg"); if(m) m.textContent = store.done[k] ? "Nice work. Marked complete." : "Marked not complete.";
+    };
+  }
+}
+document.getElementById("tabToday").onclick = ()=>{ view = {mode:"today"}; render(); };
+document.getElementById("tabPlan").onclick = ()=>{ view = {mode:"plan"}; render(); };
+
+/* ---------- timer ---------- */
+const T = {el:document.getElementById("timer"), clock:document.getElementById("tClock"), phase:document.getElementById("tPhase"), meta:document.getElementById("tMeta"), title:document.getElementById("tTitle"), start:document.getElementById("tStart")};
+let tm = null, raf = null, actx = null, wake = null;
+const PREP = 10;
+
+function beep(freq, dur){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = freq; o.type = "square"; g.gain.value = .08;
+    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
+  }catch(e){}
+}
+const fmt = s=>{ s = Math.max(0, Math.ceil(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
+
+function totalOf(t){
+  if(t.mode==="amrap"||t.mode==="countdown"||t.mode==="emom") return t.min*60;
+  if(t.mode==="fortime") return t.cap*60;
+  const sets = t.sets||1; return sets*t.rounds*(t.work+t.rest) + (sets-1)*(t.setRest||0);
+}
+
+function stateAt(t, e){
+  if(e < 0) return {clock:-e, phase:"Get ready", meta:"", cue:"prep"};
+  const total = totalOf(t);
+  if(e >= total) return {clock:0, phase:"Time", meta: t.mode==="fortime" ? "Time cap reached" : "Done", done:true};
+  if(t.mode==="amrap"||t.mode==="countdown") return {clock: total-e, phase: t.mode==="amrap" ? "As many rounds as possible" : "Keep moving", meta: fmt(e)+" elapsed", cue:"down"};
+  if(t.mode==="fortime") return {clock: e, up:true, phase:"Go", meta:"Cap "+t.cap+":00", cue:"up"};
+  if(t.mode==="emom"){
+    const m = Math.floor(e/60), st = t.stations[m % t.stations.length];
+    return {clock: 60 - (e%60), phase: st, meta:"Minute "+(m+1)+" of "+t.min, slot:m, cue:"down"};
+  }
+  // tabata
+  const cyc = t.work+t.rest, setLen = t.rounds*cyc, sr = t.setRest||0;
+  let x = e, set = 0;
+  while(set < (t.sets||1)-1 && x >= setLen + sr){ x -= setLen + sr; set++; }
+  const label = t.labels[set % t.labels.length];
+  if(x >= setLen){ const left = setLen + sr - x; return {clock:left, phase:"Rest", meta:"Next: "+t.labels[(set+1)%t.labels.length], slot:"r"+set, cue:"down"}; }
+  const r = Math.floor(x/cyc), inR = x % cyc, working = inR < t.work;
+  return {clock: working ? t.work-inR : cyc-inR, phase: working ? label : "Rest", meta:"Round "+(r+1)+" of "+t.rounds+((t.sets||1)>1?", set "+(set+1)+" of "+t.sets:""), slot:set+"-"+r+"-"+(working?"w":"r"), cue:"down"};
+}
+
+function elapsed(){ return tm.acc + (tm.running ? (performance.now()-tm.t0)/1000 : 0) - PREP; }
+
+function tick(){
+  const e = elapsed(), s = stateAt(tm.spec, e);
+  T.clock.textContent = s.up ? fmt(Math.floor(s.clock)) : fmt(s.clock);
+  T.phase.textContent = s.phase; T.meta.textContent = s.meta;
+  const sec = Math.ceil(s.clock);
+  if(tm.running){
+    if(s.slot !== undefined && s.slot !== tm.lastSlot && tm.lastSlot !== undefined) beep(880,.35);
+    else if(s.cue==="prep" && sec !== tm.lastSec && sec<=3 && sec>0) beep(520,.12);
+    else if(e>=0 && tm.lastE<0) beep(880,.45);
+    else if(s.cue==="down" && sec !== tm.lastSec && sec<=3 && sec>0 && (s.slot!==undefined || s.clock < 4)) beep(520,.1);
+    if(s.done){ beep(660,.6); tm.running=false; T.start.textContent="Start"; releaseWake(); }
+  }
+  tm.lastSlot = s.slot; tm.lastSec = sec; tm.lastE = e;
+  if(tm.running) raf = requestAnimationFrame(tick);
+}
+async function holdWake(){ try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){} }
+function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
+
+function openTimer(wo, block, type){
+  tm = {spec:block.timer, acc:0, running:false, t0:0};
+  T.el.className = "timer on " + TYPES[type].cls;
+  T.title.textContent = wo.title + ": " + block.name + " (" + block.fmt + ")";
+  T.start.textContent = "Start";
+  tick();
+  T.start.focus();
+}
+T.start.onclick = ()=>{
+  if(!tm) return;
+  if(tm.running){ tm.acc += (performance.now()-tm.t0)/1000; tm.running=false; T.start.textContent="Resume"; cancelAnimationFrame(raf); releaseWake(); }
+  else{ if(stateAt(tm.spec, elapsed()).done){ tm.acc=0; } tm.t0 = performance.now(); tm.running = true; T.start.textContent="Pause"; beep(1,.01); holdWake(); tick(); }
+};
+document.getElementById("tReset").onclick = ()=>{ if(!tm) return; cancelAnimationFrame(raf); tm = {spec:tm.spec, acc:0, running:false, t0:0}; T.start.textContent="Start"; releaseWake(); tick(); };
+document.getElementById("tClose").onclick = ()=>{ cancelAnimationFrame(raf); if(tm) tm.running=false; releaseWake(); T.el.className = "timer"; };
+document.addEventListener("keydown", e=>{ if(e.key==="Escape" && T.el.classList.contains("on")) document.getElementById("tClose").click(); });
+
+render();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+</script>
+</body>
+</html>
