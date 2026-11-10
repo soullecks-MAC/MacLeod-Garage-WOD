@@ -1,6 +1,6 @@
 {
-  "name": "Garage WOD",
-  "short_name": "Garage WOD",
+  "name": "MacLeod HIIT Garage",
+  "short_name": "MacLeod HIIT Garage",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

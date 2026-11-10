@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Garage WOD</title>
+<title>MacLeod HIIT Garage</title>
 <meta name="theme-color" content="#171B21">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -129,12 +129,19 @@ button{cursor:pointer}
 .timer .ctrl button{flex:1;border:0;border-radius:14px;padding:16px;font-weight:700;font-size:18px;background:rgba(0,0,0,.22);color:inherit}
 .timer .ctrl .primary{background:rgba(255,255,255,.92);color:#1D232B;flex:2}
 .timer .x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;border:0;background:rgba(0,0,0,.18);color:inherit;width:44px;height:44px;border-radius:50%;font-size:22px;line-height:1}
+.blocknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 18px}
+.blocknav button{border:0;background:var(--surface);border-radius:999px;width:44px;height:44px;font-size:22px;font-weight:700}
+.blocknav button:disabled{opacity:.35}
+.blocknav div{text-align:center}
+.blocknav b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:26px;line-height:1.1}
+.blocknav small{color:var(--muted);font-size:14px}
+.last{margin:8px 0 0;font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="brand">Garage WOD</div>
+    <div class="brand">MacLeod HIIT Garage</div>
     <div class="seg" role="group" aria-label="View">
       <button id="tabToday" aria-pressed="true">Today</button>
       <button id="tabPlan" aria-pressed="false">Plan</button>
@@ -156,7 +163,15 @@ button{cursor:pointer}
 </div>
 
 <script>
-/* ---------- program ---------- */
+/* ---------- helpers ---------- */
+const B = (name, fmt, lines, timer, note) => ({name, fmt, lines, timer, note});
+const amrap = m => ({mode:"amrap", min:m});
+const ft = c => ({mode:"fortime", cap:c});
+const cd = m => ({mode:"countdown", min:m});
+const emom = (m, stations, every) => ({mode:"emom", min:m, stations, every:every||60});
+const tab = (labels, o) => Object.assign({mode:"tabata", work:20, rest:10, rounds:8, sets:1, setRest:60, labels}, o||{});
+const range = (n, f) => Array.from({length:n}, (_, i) => f(i));
+
 const TYPES = {
   movement:{label:"Movement", cls:"t-movement"},
   barbell:{label:"HIIT: barbell + kettlebell", cls:"t-barbell"},
@@ -166,236 +181,406 @@ const TYPES = {
 };
 const DAYNAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
 const DAYTYPES = ["movement","barbell","yoga","body","heavy"];
-const WEEKS = [
-  {name:"Week 1", focus:"Find your starting weights and pace."},
-  {name:"Week 2", focus:"Add a little weight and volume."},
-  {name:"Week 3", focus:"Heaviest week of the cycle."},
-  {name:"Week 4", focus:"Back off, recover, and retest."}
+const PHASES = ["Foundation","Strength","Power","Peak","Test"];
+const POS_FOCUS = ["Sets of eight to find your working weights.","Fives, adding weight each week.","Heavy triples.","Back off, recover, and retest."];
+
+/* ---------- Tuesday pool: barbell + kettlebell ---------- */
+const TUE = [
+ {id:"t1", title:"Thruster grind", sub:"Snatch practice, then a 15-minute AMRAP.", blocks:[
+  B("Power snatch","EMOM 10 minutes",["2 power snatches every minute","Light to moderate, about 75–95 lb"],emom(10,["2 power snatches"])),
+  B("Workout","AMRAP 15 minutes",["10 kettlebell swings (40 lb)","8 thrusters (75–95 lb)","50 single-unders"],amrap(15),"Log rounds plus extra reps.")]},
+ {id:"t2", title:"Push press ladder", sub:"Heavy triples, then a fast 21-15-9.", blocks:[
+  B("Push press","5 × 3",["Build across sets to a heavy triple","Rest 90 sec"]),
+  B("Workout","21-15-9 for time, 15 minute cap",["Kettlebell swings","Burpees","Thrusters (75–95 lb)"],ft(15),"21 of each, then 15, then 9.")]},
+ {id:"t3", title:"Clean and press", sub:"Hang cleans, then four hard rounds.", blocks:[
+  B("Hang power clean","EMOM 12 minutes",["3 hang power cleans every minute","Moderate, crisp reps"],emom(12,["3 hang power cleans"])),
+  B("Workout","4 rounds for time, 18 minute cap",["12 kettlebell goblet squats","10 shoulder-to-overhead (95 lb)","15 kettlebell swings","60 single-unders"],ft(18))]},
+ {id:"t4", title:"Snatch and pull", sub:"Build a heavy double, then a quick AMRAP.", blocks:[
+  B("Power snatch","5 × 2",["Build across sets","Rest 90 sec"]),
+  B("Workout","AMRAP 12 minutes",["5 power snatches (75 lb)","7 pull-ups","30 single-unders"],amrap(12))]},
+ {id:"t5", title:"Deadlift and rope", sub:"Five rounds with built-in rest.", blocks:[
+  B("Workout","5 rounds for time, 20 minute cap",["8 deadlifts (135 lb)","12 kettlebell swings","60 single-unders","Rest 1 minute"],ft(20),"Keep your back flat on every deadlift.")]},
+ {id:"t6", title:"Front rack EMOM", sub:"Four stations, four rounds.", blocks:[
+  B("Workout","EMOM 16 minutes (4 rounds)",["Minute 1: 6 front squats (95 lb)","Minute 2: 12 kettlebell swings","Minute 3: 10 push-ups","Minute 4: 6 pull-ups"],emom(16,["6 front squats","12 kettlebell swings","10 push-ups","6 pull-ups"]))]},
+ {id:"t7", title:"Hang clean triplet", sub:"Heavy triples, then three rounds.", blocks:[
+  B("Hang power clean","5 × 3",["Build to a heavy, fast triple"]),
+  B("Workout","3 rounds for time, 15 minute cap",["10 hang power cleans (95 lb)","15 kettlebell goblet squats","20 sit-ups"],ft(15))]},
+ {id:"t8", title:"Press and pull", sub:"Strict pressing, then a short AMRAP.", blocks:[
+  B("Strict press","5 × 5",["Moderate to heavy, no leg drive","Rest 2 min"]),
+  B("Workout","AMRAP 10 minutes",["5 push presses (95 lb)","10 kettlebell swings","5 pull-ups"],amrap(10))]},
+ {id:"t9", title:"Barbell complex", sub:"Build a complex, then a swing Tabata.", blocks:[
+  B("Complex","EMOM 10 minutes",["1 deadlift, 1 hang power clean, 1 front squat, 1 push press","Add weight every 2 minutes"],emom(10,["Deadlift, hang clean, front squat, push press"])),
+  B("Finisher","Tabata, 4 minutes",["Kettlebell swings, 20 sec on, 10 sec off, 8 rounds"],tab(["Kettlebell swings"]),"Log your lowest round.")]},
+ {id:"t10", title:"Garage chipper", sub:"One long list, top to bottom.", blocks:[
+  B("Workout","For time, 20 minute cap",["50 single-unders","40 kettlebell swings","30 air squats","20 push presses (75 lb)","10 burpees","50 single-unders"],ft(20))]},
+ {id:"t11", title:"Every three minutes", sub:"Five rounds, rest what’s left of each.", blocks:[
+  B("Workout","Every 3 minutes for 5 rounds",["5 power cleans (95 lb)","10 burpees","15 kettlebell swings","Rest whatever time is left"],emom(15,["5 cleans, 10 burpees, 15 swings"],180),"Log your slowest round.")]},
+ {id:"t12", title:"Thrusters and pull-ups", sub:"Alternating minutes, then a quick finisher.", blocks:[
+  B("Workout","EMOM 12 minutes",["Odd minutes: 5 thrusters (95 lb)","Even minutes: 6 pull-ups"],emom(12,["5 thrusters","6 pull-ups"])),
+  B("Finisher","3 rounds",["15 kettlebell swings","20 sit-ups"])]},
+ {id:"t13", title:"Kettlebell flow", sub:"Twenty minutes with one bell.", blocks:[
+  B("Workout","AMRAP 20 minutes (40 lb)",["10 kettlebell swings","10 goblet squats","5 clean and press each arm","50 single-unders"],amrap(20))]},
+ {id:"t14", title:"Clean and burpee", sub:"Heavy-ish doubles, then a sprint.", blocks:[
+  B("Power clean","EMOM 10 minutes",["2 power cleans, moderately heavy"],emom(10,["2 power cleans"])),
+  B("Workout","21-15-9 for time, 12 minute cap",["Power cleans (75 lb)","Burpees"],ft(12))]},
+ {id:"t15", title:"Snatch and swing", sub:"Light, fast snatches, then a short burner.", blocks:[
+  B("Power snatch","EMOM 12 minutes",["1 power snatch plus 2 hang power snatches","Light, fast, and clean"],emom(12,["1 power snatch + 2 hang snatches"])),
+  B("Workout","AMRAP 8 minutes",["10 kettlebell snatches (5 each arm)","10 push-ups","10 air squats"],amrap(8))]},
+ {id:"t16", title:"Rows and rope", sub:"Four rounds, steady pace.", blocks:[
+  B("Workout","4 rounds for time, 16 minute cap",["10 barbell rows (95 lb)","10 kettlebell swings","10 burpees","40 single-unders"],ft(16))]},
+ {id:"t17", title:"Push press intervals", sub:"Work, rope, rest, six times.", blocks:[
+  B("Workout","6 rounds of 3 minutes",["Minute 1: max push presses (75 lb)","Minute 2: jump rope","Minute 3: rest"],emom(18,["Max push presses","Jump rope","Rest"]),"Log total push presses.")]},
+ {id:"t18", title:"Clusters", sub:"Squat clean thrusters, then alternating Tabata.", blocks:[
+  B("Cluster","EMOM 10 minutes",["2 clusters (squat clean into a thruster), 75–95 lb"],emom(10,["2 clusters"])),
+  B("Finisher","Tabata, 8 minutes",["Alternate kettlebell swings and push-ups every round"],tab(["Kettlebell swings","Push-ups"],{rounds:16,alt:true}))]},
+ {id:"t19", title:"Thruster ladder", sub:"Keep climbing for ten minutes.", blocks:[
+  B("Workout","AMRAP 10 minutes, ascending ladder",["1 thruster and 1 pull-up, then 2 and 2, then 3 and 3, and keep climbing","Thrusters at 75 lb"],amrap(10),"Log the last full rung you finished.")]},
+ {id:"t20", title:"Long grind", sub:"Twenty minutes, nothing too heavy.", blocks:[
+  B("Workout","AMRAP 20 minutes",["5 deadlifts (135 lb)","10 push-ups","15 kettlebell swings","5 pull-ups"],amrap(20))]}
+];
+const TUE_TEST = [
+ {id:"tb1", title:"Fran", sub:"The classic thruster and pull-up benchmark.", blocks:[
+  B("Benchmark","21-15-9 for time, 12 minute cap",["Thrusters (65–95 lb)","Pull-ups"],ft(12),"Log your time and weight. Fran comes back every few months.")]},
+ {id:"tb2", title:"Garage Grace", sub:"Thirty clean and jerks, as fast as you can.", blocks:[
+  B("Benchmark","For time, 10 minute cap",["30 clean and jerks (75 lb)","Single reps, reset between each"],ft(10))]},
+ {id:"tb3", title:"Garage Isabel", sub:"Thirty power snatches for time.", blocks:[
+  B("Benchmark","For time, 10 minute cap",["30 power snatches (65 lb)"],ft(10))]},
+ {id:"tb4", title:"Scaled DT", sub:"Five rounds with one barbell.", blocks:[
+  B("Benchmark","5 rounds for time, 15 minute cap",["12 deadlifts","9 hang power cleans","6 push presses","All at 75 lb"],ft(15))]},
+ {id:"tb5", title:"Swing test", sub:"Four minutes of all-out swings.", blocks:[
+  B("Benchmark","Tabata, 4 minutes",["Kettlebell swings (40 lb), 20 sec on, 10 sec off"],tab(["Kettlebell swings"]),"Score is your total swings."),
+  B("Then","3 easy rounds",["10 goblet squats","10 push-ups"])]},
+ {id:"tb6", title:"Thruster test", sub:"Short and fast.", blocks:[
+  B("Benchmark","21-15-9 for time, 12 minute cap",["Thrusters (65–95 lb)","Burpees"],ft(12))]}
 ];
 
-const warmRope = (extra)=>({name:"Warm-up", fmt:"8 minutes", lines:["3 min jump rope, easy"].concat(extra)});
-
-const PROGRAM = [
- // ---- week 1
- [
-  {title:"Easy cardio", sub:"30 minutes at a pace you could talk through.", blocks:[
-    {name:"Steady state", fmt:"30 minutes", lines:["Elliptical or brisk walk","Keep your breathing controlled the whole time"], timer:{mode:"countdown",min:30}},
-    {name:"Cooldown", fmt:"5 minutes", lines:["Calf, quad and hip flexor stretch, 45 sec each side"]}]},
-  {title:"Thruster grind", sub:"Snatch practice, then a 15-minute AMRAP.", blocks:[
-    warmRope(["2 rounds: 10 goblet squats, 10 kettlebell halos, 10 empty-bar good mornings"]),
-    {name:"Power snatch", fmt:"EMOM 10 minutes", lines:["2 power snatches every minute","Light to moderate, about 75–95 lb"], timer:{mode:"emom",min:10,stations:["2 power snatches"]}},
-    {name:"Workout", fmt:"AMRAP 15 minutes", lines:["10 kettlebell swings (40 lb)","8 thrusters (75–95 lb)","50 single-unders"], timer:{mode:"amrap",min:15}, note:"Log rounds plus extra reps."}]},
-  {title:"Hips and hamstrings", sub:"30 minutes of slow, held stretching.", blocks:[
-    {name:"Warm-up", fmt:"5 minutes", lines:["3 slow sun salutations","Cat-cow, 10 breaths"]},
-    {name:"Holds", fmt:"25 minutes", lines:["Low lunge, 60 sec each side","Lizard, 60 sec each side","Pigeon, 90 sec each side","Half split, 60 sec each side","Seated forward fold, 2 min","Happy baby, 60 sec","Child’s pose, 2 min"], timer:{mode:"countdown",min:30}}]},
-  {title:"Bodyweight chipper", sub:"Five rounds for time, then a plank finisher.", blocks:[
-    warmRope(["2 rounds: 10 air squats, 10 push-ups, 20 mountain climbers"]),
-    {name:"Workout", fmt:"5 rounds for time, 25 minute cap", lines:["10 burpees","15 jump squats","8 Bulgarian split squats each leg (back foot on bench)","15 sit-ups","50 single-unders"], timer:{mode:"fortime",cap:25}, note:"Log your finish time."},
-    {name:"Finisher", fmt:"Tabata, 4 minutes", lines:["Plank hold, 20 sec on, 10 sec off, 8 rounds"], timer:{mode:"tabata",work:20,rest:10,rounds:8,labels:["Plank"]}}]},
-  {title:"Squat and bench", sub:"Find a heavy, clean set of five.", blocks:[
-    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses, 10 good mornings"]},
-    {name:"Back squat", fmt:"5 × 5", lines:["Build to a weight you can move for 5 clean reps","Rest 2–3 min between sets"]},
-    {name:"Bench press", fmt:"5 × 5", lines:["Same approach: heavy but clean","Rest 2–3 min"]},
-    {name:"Barbell RDL", fmt:"3 × 8", lines:["Moderate weight, slow on the way down"]},
-    {name:"Finisher", fmt:"3 rounds", lines:["40-yard kettlebell suitcase carry, each arm"], note:"Write down your squat and bench weights. Next week builds from them."}]}
- ],
- // ---- week 2
- [
-  {title:"Longer walk", sub:"40 minutes, steady and easy.", blocks:[
-    {name:"Steady state", fmt:"40 minutes", lines:["Elliptical or brisk walk","Slightly faster than last week"], timer:{mode:"countdown",min:40}},
-    {name:"Cooldown", fmt:"5 minutes", lines:["Hamstring and hip stretch, 45 sec each side"]}]},
-  {title:"Push press ladder", sub:"Heavy triples, then a fast 21-15-9.", blocks:[
-    warmRope(["2 rounds: 10 kettlebell deadlifts, 10 empty-bar push presses, 10 air squats"]),
-    {name:"Push press", fmt:"5 × 3", lines:["Build across sets to a heavy triple","Rest 90 sec"]},
-    {name:"Workout", fmt:"21-15-9 for time, 15 minute cap", lines:["Kettlebell swings (40 lb)","Burpees","Thrusters (75–95 lb)"], timer:{mode:"fortime",cap:15}, note:"Do 21 of each, then 15, then 9."}]},
-  {title:"Spine and shoulders", sub:"30 minutes to open up your back.", blocks:[
-    {name:"Warm-up", fmt:"5 minutes", lines:["Cat-cow, 10 breaths","3 sun salutations"]},
-    {name:"Holds", fmt:"25 minutes", lines:["Thread the needle, 60 sec each side","Puppy pose, 90 sec","Cobra to child’s pose, 10 slow reps","Supine twist, 90 sec each side","Eagle arms, 45 sec each side","Supported fish (over a rolled towel), 2 min","Child’s pose, 2 min"], timer:{mode:"countdown",min:30}}]},
-  {title:"Four-station EMOM", sub:"20 minutes, a new station every minute.", blocks:[
-    warmRope(["2 rounds: 10 air squats, 10 push-ups, 10 sit-ups"]),
-    {name:"Workout", fmt:"EMOM 20 minutes (5 rounds)", lines:["Minute 1: 10 burpees","Minute 2: 15 air squats","Minute 3: 12 push-ups","Minute 4: 40 jump rope"], timer:{mode:"emom",min:20,stations:["10 burpees","15 air squats","12 push-ups","40 jump rope"]}},
-    {name:"Finisher", fmt:"Tabata, 4 minutes", lines:["Mountain climbers, 20 sec on, 10 sec off, 8 rounds"], timer:{mode:"tabata",work:20,rest:10,rounds:8,labels:["Mountain climbers"]}}]},
-  {title:"Heavier fives", sub:"Add weight to last week’s numbers.", blocks:[
-    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses"]},
-    {name:"Back squat", fmt:"5 × 5", lines:["Last week’s weight plus 5–10 lb","Rest 2–3 min"]},
-    {name:"Bench press", fmt:"5 × 5", lines:["Last week’s weight plus 5 lb","Rest 2–3 min"]},
-    {name:"Bulgarian split squat", fmt:"3 × 8 each leg", lines:["Bodyweight, or hold the kettlebell goblet-style"]},
-    {name:"Barbell row", fmt:"3 × 8", lines:["Moderate, pause at the top"]}]}
- ],
- // ---- week 3
- [
-  {title:"Walk with pickups", sub:"45 minutes with five short pushes.", blocks:[
-    {name:"Steady state", fmt:"45 minutes", lines:["Elliptical or brisk walk","Every 8 minutes, go hard for 1 minute, 5 times total"], timer:{mode:"countdown",min:45}},
-    {name:"Cooldown", fmt:"5 minutes", lines:["Easy pace and full-body stretch"]}]},
-  {title:"Clean and press", sub:"Hang cleans, then four hard rounds.", blocks:[
-    warmRope(["2 rounds: 10 goblet squats, 10 empty-bar hang cleans, 10 push-ups"]),
-    {name:"Hang power clean", fmt:"EMOM 12 minutes", lines:["3 hang power cleans every minute","Moderate, crisp reps"], timer:{mode:"emom",min:12,stations:["3 hang power cleans"]}},
-    {name:"Workout", fmt:"4 rounds for time, 18 minute cap", lines:["12 kettlebell goblet squats","10 shoulder-to-overhead (95 lb)","15 kettlebell swings","60 single-unders"], timer:{mode:"fortime",cap:18}}]},
-  {title:"Full-body flow", sub:"40 minutes, moving and holding.", blocks:[
-    {name:"Flow", fmt:"15 minutes", lines:["5 sun salutations","Warrior 1 to warrior 2 to triangle, 3 breaths each pose, both sides","Chair pose, 5 breaths, 3 times"]},
-    {name:"Holds", fmt:"25 minutes", lines:["Pigeon, 2 min each side","Lizard, 60 sec each side","Thread the needle, 60 sec each side","Seated forward fold, 2 min","Supine twist, 90 sec each side","Child’s pose, 3 min"], timer:{mode:"countdown",min:40}}]},
-  {title:"Twenty-minute AMRAP", sub:"Steady pace, no long breaks.", blocks:[
-    warmRope(["2 rounds: 10 air squats, 10 push-ups, 20 mountain climbers"]),
-    {name:"Workout", fmt:"AMRAP 20 minutes", lines:["5 burpees","10 push-ups","6 Bulgarian split squats each leg","15 sit-ups","15 jump squats"], timer:{mode:"amrap",min:20}, note:"Log rounds plus extra reps."}]},
-  {title:"Heavy triples", sub:"Fewer reps, more weight.", blocks:[
-    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses, 10 deadlifts"]},
-    {name:"Back squat", fmt:"5 × 3", lines:["Week 2 weight plus 10–15 lb","Rest 3 min"]},
-    {name:"Bench press", fmt:"5 × 3", lines:["Week 2 weight plus 10 lb","Rest 3 min"]},
-    {name:"Deadlift", fmt:"3 × 5", lines:["Moderately heavy, reset each rep"]},
-    {name:"Finisher", fmt:"3 rounds", lines:["40-yard kettlebell suitcase carry, each arm"]}]}
- ],
- // ---- week 4
- [
-  {title:"Recovery walk", sub:"30 easy minutes plus mobility.", blocks:[
-    {name:"Steady state", fmt:"30 minutes", lines:["Elliptical or walk, truly easy"], timer:{mode:"countdown",min:30}},
-    {name:"Mobility", fmt:"10 minutes", lines:["Pigeon, 60 sec each side","Low lunge, 60 sec each side","Child’s pose, 2 min"]}]},
-  {title:"Thruster test", sub:"A short, fast benchmark to compare next cycle.", blocks:[
-    warmRope(["2 rounds: 10 empty-bar thrusters, 10 burpees, 10 kettlebell swings"]),
-    {name:"Benchmark", fmt:"21-15-9 for time, 12 minute cap", lines:["Thrusters (65–95 lb)","Burpees"], timer:{mode:"fortime",cap:12}, note:"Log your time and weight. You’ll repeat this in week 4 of the next cycle."},
-    {name:"Finisher", fmt:"3 rounds", lines:["15 kettlebell swings","Rest 60 sec"]}]},
-  {title:"Long holds", sub:"35 minutes of deep, quiet stretching.", blocks:[
-    {name:"Holds", fmt:"35 minutes", lines:["Child’s pose, 3 min","Pigeon, 2 min each side","Half split, 90 sec each side","Butterfly, 3 min","Supine twist, 2 min each side","Legs up the wall, 5 min"], timer:{mode:"countdown",min:35}}]},
-  {title:"Tabata ladder", sub:"Four Tabatas, one minute rest between.", blocks:[
-    warmRope(["2 rounds: 10 air squats, 10 push-ups"]),
-    {name:"Workout", fmt:"4 Tabatas (20 sec on, 10 sec off, 8 rounds each)", lines:["Jump rope","Push-ups","Jump squats","Sit-ups","1 minute rest between each Tabata"], timer:{mode:"tabata",work:20,rest:10,rounds:8,sets:4,setRest:60,labels:["Jump rope","Push-ups","Jump squats","Sit-ups"]}, note:"Log your lowest round count for each movement."}]},
-  {title:"Deload day", sub:"Lighter weight, perfect reps.", blocks:[
-    {name:"Warm-up", fmt:"8 minutes", lines:["5 min jump rope","Empty bar: 10 squats, 10 presses"]},
-    {name:"Back squat", fmt:"3 × 5", lines:["About 80% of your week 3 weight"]},
-    {name:"Bench press", fmt:"3 × 5", lines:["About 80% of your week 3 weight"]},
-    {name:"Barbell RDL", fmt:"3 × 8", lines:["Moderate"]},
-    {name:"Kettlebell swings", fmt:"3 × 15", lines:["Rest 60 sec"], note:"Next cycle starts Monday. Begin week 1 a little heavier than last time."}]}
- ]
+/* ---------- Thursday pool: bodyweight ---------- */
+const THU = [
+ {id:"b1", title:"Bodyweight chipper", sub:"Five rounds for time, then a plank finisher.", blocks:[
+  B("Workout","5 rounds for time, 25 minute cap",["10 burpees","8 pull-ups","8 Bulgarian split squats each leg (back foot on bench)","15 sit-ups","50 single-unders"],ft(25)),
+  B("Finisher","Tabata, 4 minutes",["Plank hold"],tab(["Plank"]))]},
+ {id:"b2", title:"Four-station EMOM", sub:"Twenty minutes, a new station every minute.", blocks:[
+  B("Workout","EMOM 20 minutes (5 rounds)",["Minute 1: 10 burpees","Minute 2: 5 pull-ups","Minute 3: 12 push-ups","Minute 4: 40 jump rope"],emom(20,["10 burpees","5 pull-ups","12 push-ups","40 jump rope"])),
+  B("Finisher","Tabata, 4 minutes",["Mountain climbers"],tab(["Mountain climbers"]))]},
+ {id:"b3", title:"Cindy-style AMRAP", sub:"Twenty minutes of steady rounds.", blocks:[
+  B("Workout","AMRAP 20 minutes",["5 pull-ups","10 push-ups","6 Bulgarian split squats each leg","15 sit-ups"],amrap(20),"Log rounds plus extra reps.")]},
+ {id:"b4", title:"Tabata ladder", sub:"Four Tabatas, one minute rest between.", blocks:[
+  B("Workout","4 Tabatas (20 on, 10 off, 8 rounds each)",["Jump rope","Pull-ups (or jumping pull-ups)","Jump squats","Sit-ups","1 minute rest between each"],tab(["Jump rope","Pull-ups","Jump squats","Sit-ups"],{sets:4}),"Log your lowest round for each.")]},
+ {id:"b5", title:"Death by pull-ups", sub:"Add one rep every minute until you can’t.", blocks:[
+  B("Workout","EMOM until you can’t finish the minute",["Minute 1: 1 pull-up","Minute 2: 2 pull-ups","Add 1 more every minute"],emom(20,range(20,i=>(i+1)+(i?" pull-ups":" pull-up"))),"Log the last minute you completed."),
+  B("Then","3 rounds",["20 air squats","15 sit-ups"])]},
+ {id:"b6", title:"Rope and sit-ups", sub:"A descending ladder for time.", blocks:[
+  B("Workout","For time, 20 minute cap",["Single-unders: 100, 80, 60, 40, 20","Sit-ups: 50, 40, 30, 20, 10"],ft(20),"Doing double-unders? Use 50, 40, 30, 20, 10.")]},
+ {id:"b7", title:"Garage Mary", sub:"Press, legs, and pull for twenty minutes.", blocks:[
+  B("Workout","AMRAP 20 minutes",["5 pike push-ups","5 Bulgarian split squats each leg","10 pull-ups"],amrap(20))]},
+ {id:"b8", title:"Ten to one", sub:"Descending reps with rope in between.", blocks:[
+  B("Workout","For time, 15 minute cap",["Burpees and sit-ups: 10 each, then 9, down to 1","20 single-unders between every rung"],ft(15))]},
+ {id:"b9", title:"Six-round EMOM", sub:"Twenty-four minutes, four stations.", blocks:[
+  B("Workout","EMOM 24 minutes (6 rounds)",["Minute 1: 6 pull-ups","Minute 2: 12 jump squats","Minute 3: 12 V-ups","Minute 4: 30 mountain climbers"],emom(24,["6 pull-ups","12 jump squats","12 V-ups","30 mountain climbers"]))]},
+ {id:"b10", title:"Chipper down", sub:"Big reps first, small reps last.", blocks:[
+  B("Workout","For time, 20 minute cap",["100 single-unders","50 air squats","40 sit-ups","30 push-ups","20 pull-ups","10 burpees"],ft(20))]},
+ {id:"b11", title:"Burpee intervals", sub:"Thirty seconds on, thirty off.", blocks:[
+  B("Workout","10 rounds, 30 sec on, 30 sec off",["Max burpees"],tab(["Max burpees"],{work:30,rest:30,rounds:10}),"Log total burpees."),
+  B("Then","3 rounds",["8 pull-ups","20 sit-ups"])]},
+ {id:"b12", title:"Core and rope", sub:"Five rounds, moving the whole time.", blocks:[
+  B("Workout","5 rounds for time, 18 minute cap",["15 V-ups","15 push-ups","15 air squats","60 single-unders"],ft(18))]},
+ {id:"b13", title:"Bulgarian burner", sub:"Four rounds of legs, push, and pull.", blocks:[
+  B("Workout","4 rounds for time, 20 minute cap",["10 Bulgarian split squats each leg","10 push-ups","8 pull-ups","40 single-unders"],ft(20))]},
+ {id:"b14", title:"Climbing rounds", sub:"Every round gets bigger.", blocks:[
+  B("Workout","AMRAP 15 minutes",["Round 1: 3 pull-ups, 6 push-ups, 9 air squats","Round 2: 6, 12, 18","Add 3, 6, 9 every round"],amrap(15),"Log the last full round plus extra reps.")]},
+ {id:"b15", title:"Pull and push EMOM", sub:"Alternating minutes for twenty.", blocks:[
+  B("Workout","EMOM 20 minutes",["Odd minutes: 5 pull-ups and 5 burpees","Even minutes: 15 air squats and 15 sit-ups"],emom(20,["5 pull-ups + 5 burpees","15 air squats + 15 sit-ups"]))]},
+ {id:"b16", title:"Core Tabatas", sub:"Three Tabatas, then pull-up sets.", blocks:[
+  B("Workout","3 Tabatas, 1 minute rest between",["Plank","Push-ups","Hollow hold"],tab(["Plank","Push-ups","Hollow hold"],{sets:3})),
+  B("Then","3 sets",["Max strict pull-ups, rest 2 min"])]},
+ {id:"b17", title:"Rope test", sub:"Ten minutes of rope and burpees.", blocks:[
+  B("Workout","AMRAP 10 minutes",["50 single-unders","10 burpees"],amrap(10))]},
+ {id:"b18", title:"Bodyweight triplet", sub:"A fast descending couplet plus pulls.", blocks:[
+  B("Workout","For time, 15 minute cap",["Burpees: 21, 15, 9","Sit-ups: 21, 15, 9","Pull-ups: 14, 10, 6"],ft(15))]},
+ {id:"b19", title:"Long steady", sub:"Twenty-five minutes at a pace you can hold.", blocks:[
+  B("Workout","AMRAP 25 minutes, easy pace",["10 push-ups","15 sit-ups","20 air squats","5 pull-ups","50 single-unders"],amrap(25))]},
+ {id:"b20", title:"Jump and pull", sub:"Five rounds with broad jumps.", blocks:[
+  B("Workout","5 rounds for time, 18 minute cap",["6 broad jumps (walk back)","8 pull-ups","12 hand-release push-ups","16 sit-ups"],ft(18))]}
+];
+const THU_TEST = [
+ {id:"bb1", title:"Cindy", sub:"The classic twenty-minute benchmark.", blocks:[
+  B("Benchmark","AMRAP 20 minutes",["5 pull-ups","10 push-ups","15 air squats"],amrap(20),"Log rounds plus extra reps.")]},
+ {id:"bb2", title:"Max rep test", sub:"Three single sets, full rest between.", blocks:[
+  B("Test","3 parts, 3 minutes rest between",["Max strict pull-ups, one set","Max push-ups, one set","Max air squats in 2 minutes"],null,"Log all three numbers.")]},
+ {id:"bb3", title:"Burpee test", sub:"Seven minutes, as many as you can.", blocks:[
+  B("Benchmark","AMRAP 7 minutes",["Burpees"],amrap(7),"Log total burpees.")]},
+ {id:"bb4", title:"Tabata test", sub:"Two Tabatas, scored by your lowest round.", blocks:[
+  B("Benchmark","2 Tabatas, 1 minute rest between",["Air squats","Sit-ups"],tab(["Air squats","Sit-ups"],{sets:2}),"Log your lowest round for each.")]},
+ {id:"bb5", title:"Half Cindy plus rope", sub:"Twelve minutes, quick turnover.", blocks:[
+  B("Benchmark","AMRAP 12 minutes",["5 pull-ups","10 push-ups","15 air squats","50 single-unders"],amrap(12))]},
+ {id:"bb6", title:"Rope and sit-up test", sub:"The descending ladder, scored for time.", blocks:[
+  B("Benchmark","For time, 20 minute cap",["Single-unders: 100, 80, 60, 40, 20","Sit-ups: 50, 40, 30, 20, 10"],ft(20))]}
 ];
 
-/* ---------- storage ---------- */
-const LS_KEY = "garage-wod-v1";
-let store = {start:"2026-11-02", done:{}, results:{}};
-try{ const raw = localStorage.getItem(LS_KEY); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
-function save(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){}
+/* ---------- Wednesday pool: yoga ---------- */
+const YOGA = [
+ {id:"y1", title:"Hips and hamstrings", sub:"30 minutes of slow, held stretching.", blocks:[
+  B("Warm-up","5 minutes",["3 slow sun salutations","Cat-cow, 10 breaths"]),
+  B("Holds","25 minutes",["Low lunge, 60 sec each side","Lizard, 60 sec each side","Pigeon, 90 sec each side","Half split, 60 sec each side","Seated forward fold, 2 min","Happy baby, 60 sec","Child’s pose, 2 min"],cd(30))]},
+ {id:"y2", title:"Spine and shoulders", sub:"30 minutes to open up your back.", blocks:[
+  B("Warm-up","5 minutes",["Cat-cow, 10 breaths","3 sun salutations"]),
+  B("Holds","25 minutes",["Thread the needle, 60 sec each side","Puppy pose, 90 sec","Cobra to child’s pose, 10 slow reps","Supine twist, 90 sec each side","Eagle arms, 45 sec each side","Supported fish over a rolled towel, 2 min","Child’s pose, 2 min"],cd(30))]},
+ {id:"y3", title:"Full-body flow", sub:"40 minutes, moving and holding.", blocks:[
+  B("Flow","15 minutes",["5 sun salutations","Warrior 1 to warrior 2 to triangle, 3 breaths each, both sides","Chair pose, 5 breaths, 3 times"]),
+  B("Holds","25 minutes",["Pigeon, 2 min each side","Lizard, 60 sec each side","Thread the needle, 60 sec each side","Seated forward fold, 2 min","Supine twist, 90 sec each side","Child’s pose, 3 min"],cd(40))]},
+ {id:"y4", title:"Shoulders and chest", sub:"30 minutes to undo pull-ups and bench.", blocks:[
+  B("Warm-up","5 minutes",["Arm circles, 30 sec each direction","3 sun salutations"]),
+  B("Holds","25 minutes",["Wall chest stretch, 60 sec each side","Puppy pose, 90 sec","Thread the needle, 60 sec each side","Child’s pose with side reach, 60 sec each side","Eagle arms, 45 sec each side","Reclined butterfly with arms wide, 3 min"],cd(30))]},
+ {id:"y5", title:"Low back and glutes", sub:"30 minutes for the deadlift muscles.", blocks:[
+  B("Warm-up","5 minutes",["Knees to chest, rocking, 1 min","Cat-cow, 10 breaths"]),
+  B("Holds","25 minutes",["Figure-four, 90 sec each side","Supine twist, 90 sec each side","Sphinx, 2 min","Pigeon, 90 sec each side","Happy baby, 60 sec","Legs up the wall, 4 min"],cd(30))]},
+ {id:"y6", title:"Ankles, calves, and quads", sub:"30 minutes for jump rope legs.", blocks:[
+  B("Warm-up","5 minutes",["Downward dog, pedaling the feet, 1 min","3 sun salutations"]),
+  B("Holds","25 minutes",["Garland squat, 90 sec","Kneeling toe stretch, 60 sec","Couch stretch, 90 sec each side","Wide-leg forward fold, 2 min","Downward dog, 90 sec","Child’s pose, 2 min"],cd(30))]},
+ {id:"y7", title:"Balance and core flow", sub:"35 minutes of steadier, stronger yoga.", blocks:[
+  B("Flow","20 minutes",["5 sun salutations","Warrior 3, 5 breaths each side, twice","Tree pose, 45 sec each side","Chair pose, 5 breaths, 3 times","Boat pose, 5 breaths, 3 times","Side plank, 30 sec each side"]),
+  B("Holds","15 minutes",["Pigeon, 90 sec each side","Supine twist, 90 sec each side","Child’s pose, 3 min"],cd(35))]}
+];
+const YOGA_LONG = {id:"yL", title:"Long holds", sub:"35 minutes of deep, quiet stretching.", blocks:[
+  B("Holds","35 minutes",["Child’s pose, 3 min","Pigeon, 2 min each side","Half split, 90 sec each side","Butterfly, 3 min","Supine twist, 2 min each side","Legs up the wall, 5 min"],cd(35))]};
+
+/* ---------- warm-ups ---------- */
+const WARM = {
+  barbell:["2 rounds: 10 kettlebell deadlifts, 10 empty-bar good mornings, 10 air squats","2 rounds: 10 goblet squats, 10 kettlebell halos, 10 empty-bar presses","2 rounds: 10 empty-bar thrusters, 10 push-ups, 10 kettlebell swings"],
+  body:["2 rounds: 10 air squats, 10 push-ups, 20 mountain climbers","2 rounds: 10 jump squats, 10 sit-ups, 10 push-ups","2 rounds: 15 air squats, 10 V-ups, 20 mountain climbers"]
+};
+const warm = (type, n) => B("Warm-up","8 minutes",["3 min jump rope, easy", WARM[type][n % 3], "30 sec dead hang, then 5 scap pull-ups"]);
+
+/* ---------- builders ---------- */
+const MON_PUSH = ["Every 8 minutes, go hard for 1 minute","5 rounds of 2 minutes brisk, 2 minutes easy","Hold a strong pace for the last 10 minutes","Every 5 minutes, go fast for 30 seconds"];
+const MON_MIN = [[30,35,40,30],[35,40,45,30],[35,40,45,30],[40,45,50,30],[40,45,50,30]];
+
+function phaseOf(b){ return b < 12 ? Math.floor(b/3) : 4; }
+
+function monday(b, w){
+  const m = MON_MIN[phaseOf(b)][w];
+  if(w===0) return {id:"m0", title:"Easy cardio", sub:m+" minutes at a pace you could talk through.", blocks:[
+    B("Steady state",m+" minutes",["Elliptical or brisk walk","Keep your breathing controlled the whole time"],cd(m)),
+    B("Cooldown","5 minutes",["Calf, quad, and hip flexor stretch, 45 sec each side"])]};
+  if(w===1) return {id:"m1", title:"Cardio with pushes", sub:m+" minutes with a few harder efforts.", blocks:[
+    B("Intervals",m+" minutes",["Elliptical or brisk walk", MON_PUSH[b % 4]],cd(m)),
+    B("Cooldown","5 minutes",["Easy pace and a full-body stretch"])]};
+  if(w===2) return {id:"m2", title:"Long and steady", sub:m+" minutes, your longest of the block.", blocks:[
+    B("Steady state",m+" minutes",["Elliptical or walk","Even pace from start to finish"],cd(m)),
+    B("Cooldown","5 minutes",["Hamstring and hip stretch, 45 sec each side"])]};
+  return {id:"m3", title:"Recovery walk", sub:"30 easy minutes plus mobility.", blocks:[
+    B("Steady state","30 minutes",["Elliptical or walk, truly easy"],cd(30)),
+    B("Mobility","10 minutes",["Pigeon, 60 sec each side","Low lunge, 60 sec each side","Child’s pose, 2 min"])]};
 }
+
+const LIFTS = [
+  {a:"Back squat", b:"Bench press", acc:B("Barbell RDL","3 × 8",["Moderate weight, slow on the way down"])},
+  {a:"Deadlift", b:"Strict press", acc:B("Bulgarian split squat","3 × 8 each leg",["Bodyweight, or hold the kettlebell goblet-style"])},
+  {a:"Front squat", b:"Bench press", acc:B("Barbell row","3 × 8",["Moderate, pause at the top"])},
+  {a:"Back squat", b:"Push press", acc:B("Barbell RDL","3 × 8",["Moderate weight, slow on the way down"])}
+];
+const FINISH = [
+  B("Finisher","3 rounds",["40-yard kettlebell suitcase carry, each arm"]),
+  B("Finisher","3 rounds",["15 kettlebell swings, rest 60 sec"]),
+  B("Finisher","3 rounds",["45 sec plank, rest 30 sec"]),
+  B("Finisher","3 rounds",["Dead hang from the pull-up bar, as long as you can, rest 60 sec"])
+];
+const PLATE_NOTE = "Your plates top out at 285 lb. Once that’s easy, add reps or a 3-second lowering instead.";
+
+function friday(b, w){
+  const ph = phaseOf(b), warmup = B("Warm-up","8 minutes",["5 min jump rope","Empty bar: 10 squats, 10 presses, 10 good mornings","5 scap pull-ups"]);
+  if(ph === 4){
+    if(w===2) return {id:"f-test", title:"Heavy single day", sub:"Find your best single on three lifts.", blocks:[warmup,
+      B("Back squat","Work up to a heavy single",["Singles, adding weight until the next one would be a grind","Set the safety arms first"]),
+      B("Bench press","Work up to a heavy single",["Same approach, safeties set just below your chest"]),
+      B("Deadlift","Work up to a heavy single",["Stop at the first rep that slows down a lot"],null,PLATE_NOTE),
+      B("Strict pull-ups","1 set",["Max strict reps"],null,"Log all four numbers. Next year starts from them.")]};
+    if(w===3) return deload(b, LIFTS[0], "Year-end deload");
+    const sch = w===0 ? "5 × 5" : "5 × 3";
+    return {id:"f-t"+w, title: w===0 ? "Fives, all three lifts" : "Triples, all three lifts", sub:"Heavy work before test day.", blocks:[warmup,
+      B("Back squat",sch,["Close to your best weights of the year","Rest 3 min"]),
+      B("Bench press",sch,["Rest 3 min"]),
+      B("Deadlift", w===0 ? "3 × 5" : "3 × 3",["Reset each rep"],null,PLATE_NOTE),
+      B("Strict pull-ups","3 sets",["As many strict reps as you can"])]};
+  }
+  const L = LIFTS[ph], pos = b % 3;
+  if(w===3) return deload(b, L, "Deload day");
+  const sch = ["4 × 8","5 × 5","5 × 3"][pos], rest = ["Rest 90 sec","Rest 2–3 min","Rest 3 min"][pos];
+  const step = ["Start at a weight where every rep is clean","Last week’s weight plus 5–10 lb","Last week’s weight plus another 5–10 lb"][w];
+  const pulls = [B("Strict pull-ups","3 sets",["As many strict reps as you can, rest 2 min"]),
+                 B("Strict pull-ups","5 × 3–5",["Lower slowly, about 3 seconds each rep"]),
+                 B("Strict pull-ups","EMOM 8 minutes",["3 strict pull-ups every minute"],emom(8,["3 strict pull-ups"]))][pos];
+  return {id:"f"+ph+pos+w, title:L.a+" and "+L.b.toLowerCase(), sub:["Sets of eight.","Fives, a little heavier than last week.","Heavy triples."][pos], blocks:[warmup,
+    B(L.a, sch, [step, rest], null, L.a==="Deadlift" ? PLATE_NOTE : (w===0 ? "Write down your weights. Next week builds from them." : undefined)),
+    B(L.b, sch, [step.replace("5–10","5"), rest]),
+    L.acc, pulls, FINISH[(b+w) % 4]]};
+}
+function deload(b, L, title){
+  return {id:"fd", title, sub:"Lighter weight, perfect reps.", blocks:[
+    B("Warm-up","8 minutes",["5 min jump rope","Empty bar: 10 squats, 10 presses"]),
+    B(L.a,"3 × 5",["About 80% of last week’s weight"]),
+    B(L.b,"3 × 5",["About 80% of last week’s weight"]),
+    B("Strict pull-ups","2 sets",["About half your max reps"]),
+    B("Kettlebell swings","3 × 15",["Rest 60 sec"])]};
+}
+
+const CACHE = {};
+function workout(week, d){
+  const ck = week+"-"+d; if(CACHE[ck]) return CACHE[ck];
+  const b = Math.floor(week/4), w = week % 4, n = b*3 + w;
+  let wo;
+  if(d===0) wo = monday(b, w);
+  else if(d===1) wo = w===3 ? TUE_TEST[b % 6] : TUE[n % 20];
+  else if(d===2) wo = w===3 ? YOGA_LONG : YOGA[n % 7];
+  else if(d===3) wo = w===3 ? THU_TEST[b % 6] : THU[(n + 7) % 20];
+  else wo = friday(b, w);
+  if(d===1 || d===3){
+    const type = d===1 ? "barbell" : "body";
+    wo = Object.assign({}, wo, {blocks:[warm(type, n)].concat(wo.blocks.map(x => {
+      if(!x.note && x.lines.some(l => /pull-ups?\b/i.test(l) && !/strict/i.test(l))) return Object.assign({}, x, {note:"Short on pull-ups? Use jumping pull-ups or slow lowering reps."});
+      return x;
+    }))});
+  }
+  return CACHE[ck] = wo;
+}
+function weekFocus(week){
+  const b = Math.floor(week/4), w = week % 4;
+  if(b===12) return ["Heavy fives before testing.","Heavy triples before testing.","Test day on Friday: find your best singles.","Deload. A new year starts next week."][w];
+  return w===3 ? POS_FOCUS[3] : POS_FOCUS[b % 3];
+}
+
+/* ---------- storage (on this device) ---------- */
+const LS_KEY = "garage-wod-v2";
+let store = {start:"2026-11-02", done:{}, results:{}, ids:{}};
+try{
+  const raw = localStorage.getItem(LS_KEY);
+  if(raw) store = Object.assign(store, JSON.parse(raw));
+  else { const old = JSON.parse(localStorage.getItem("garage-wod-v1") || "null"); if(old && old.start) store.start = old.start; }
+}catch(e){}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(store)); }catch(e){} }
 
 /* ---------- dates ---------- */
 const DAY = 86400000;
 function parseDate(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
-function mondayOf(dt){ const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
+function mondayOf(dt){ const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()); d.setDate(d.getDate() - (d.getDay()+6)%7); return d; }
+function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function where(dt){
-  const wd = (dt.getDay()+6)%7; // Mon 0
+  const wd = (dt.getDay()+6)%7;
   const weeks = Math.round((mondayOf(dt) - mondayOf(parseDate(store.start))) / (7*DAY));
-  const week = ((weeks % 4) + 4) % 4;
-  const cycle = Math.floor(Math.max(weeks,0)/4) + 1;
-  return {week, day: wd <= 4 ? wd : null, cycle, before: weeks < 0};
+  return {week: ((weeks % 52) + 52) % 52, day: wd <= 4 ? wd : null, cycle: Math.floor(Math.max(weeks,0)/52) + 1, before: weeks < 0};
 }
-const keyOf = (w,d,c)=>"c"+c+"w"+(w+1)+"d"+(d+1);
+const keyOf = (week, d, c) => "y"+c+"w"+(week+1)+"d"+(d+1);
+const orderOf = k => { const m = k.match(/y(\d+)w(\d+)d(\d+)/); return m ? (+m[1])*1000 + (+m[2])*10 + (+m[3]) : 0; };
+function lastResult(id, except){
+  let best = null;
+  for(const k in store.results){
+    if(k === except || store.ids[k] !== id || !store.results[k]) continue;
+    if(orderOf(k) < orderOf(except) && (!best || orderOf(k) > orderOf(best))) best = k;
+  }
+  return best ? store.results[best] : null;
+}
 
 /* ---------- views ---------- */
 const app = document.getElementById("app");
-let view = {mode:"today", w:null, d:null};
-
-function plateHTML(type, size, text, hollow){
-  return `<div class="plate ${TYPES[type].cls}${hollow?" hollow":""}" style="${size?`width:${size}px;height:${size}px`:""}">${text?`<div class="tick">${text}</div>`:""}</div>`;
-}
+let view = {mode:"today"};
+const plateHTML = (type, text, hollow) => `<div class="plate ${TYPES[type].cls}${hollow?" hollow":""}">${text?`<div class="tick">${text}</div>`:""}</div>`;
 const playIcon = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-function workoutHTML(w, d, label, cycle){
-  const wo = PROGRAM[w][d], type = DAYTYPES[d], k = keyOf(w,d,cycle);
-  const done = !!store.done[k];
-  let h = `<section class="hero">
-    <div><div class="when">${label}</div><h1>${wo.title}</h1><div class="sub">${wo.sub}</div></div>
-    <div class="plate big ${TYPES[type].cls}"><div class="tick">${DAYNAMES[d].slice(0,3)}</div></div>
-  </section>`;
-  wo.blocks.forEach((b,i)=>{
+function workoutHTML(week, d, label, cycle){
+  const wo = workout(week, d), type = DAYTYPES[d], k = keyOf(week, d, cycle), done = !!store.done[k];
+  const prev = lastResult(wo.id, k);
+  let h = `<section class="hero"><div><div class="when">${label}</div><h1>${wo.title}</h1><div class="sub">${wo.sub}</div></div>
+    <div class="plate big ${TYPES[type].cls}"><div class="tick">${DAYNAMES[d].slice(0,3)}</div></div></section>`;
+  wo.blocks.forEach((b, i) => {
     h += `<article class="block ${TYPES[type].cls}"><h2>${b.name}</h2><p class="fmt">${b.fmt}</p><ul>${b.lines.map(l=>`<li>${l}</li>`).join("")}</ul>`;
     if(b.note) h += `<p class="note">${b.note}</p>`;
-    if(b.timer) h += `<button class="go" data-timer="${w}-${d}-${i}">${playIcon}Start timer</button>`;
+    if(b.timer) h += `<button class="go" data-timer="${week}-${d}-${i}">${playIcon}Start timer</button>`;
     h += `</article>`;
   });
-  h += `<section class="log ${TYPES[type].cls}">
-    <label for="res">Your result</label>
+  h += `<section class="log ${TYPES[type].cls}"><label for="res">Your result</label>
     <input id="res" placeholder="Time, rounds, or weights used" autocomplete="off">
+    ${prev ? `<p class="last">Last time you did this: ${esc(prev)}</p>` : ""}
     <div class="row"><button class="done-btn" id="doneBtn" aria-pressed="${done}">${done?"Completed":"Mark complete"}</button></div>
-    <div class="saved" id="savedMsg" aria-live="polite"></div>
-  </section>`;
-  return {h, k};
+    <div class="saved" id="savedMsg" aria-live="polite"></div></section>`;
+  return {h, k, id:wo.id};
 }
-
-function stripHTML(w, curDay, cycle){
-  return `<nav class="strip" aria-label="This week">` + DAYTYPES.map((t,d)=>{
-    const done = store.done[keyOf(w,d,cycle)];
-    return `<button class="mini" data-open="${w}-${d}" aria-current="${d===curDay}" aria-label="${DAYNAMES[d]}${done?", completed":""}">${plateHTML(t,0,done?"✓":"",!done)}<span>${DAYNAMES[d].slice(0,3)}</span></button>`;
+function stripHTML(week, cur, cycle){
+  return `<nav class="strip" aria-label="This week">` + DAYTYPES.map((t, d) => {
+    const done = store.done[keyOf(week, d, cycle)];
+    return `<button class="mini" data-open="${week}-${d}" aria-current="${d===cur}" aria-label="${DAYNAMES[d]}${done?", completed":""}">${plateHTML(t, done?"✓":"", !done)}<span>${DAYNAMES[d].slice(0,3)}</span></button>`;
   }).join("") + `</nav>`;
 }
+const weekLabel = week => "Week "+(week+1)+" of 52";
 
 function render(){
   document.getElementById("tabToday").setAttribute("aria-pressed", view.mode!=="plan");
   document.getElementById("tabPlan").setAttribute("aria-pressed", view.mode==="plan");
-  const now = new Date(), here = where(now), cycle = Math.max(here.cycle,1);
-  let html = "", k = null;
+  const here = where(new Date()), cycle = here.cycle, curWeek = here.before ? 0 : here.week;
+  let html = "", r = null;
 
   if(view.mode === "plan"){
-    WEEKS.forEach((wk,w)=>{
-      html += `<section class="week"><h2>${wk.name}</h2><p class="focus">${wk.focus}</p>`;
-      DAYTYPES.forEach((t,d)=>{
-        const done = store.done[keyOf(w,d,cycle)];
-        const isToday = !here.before && here.week===w && here.day===d;
-        html += `<button class="day" data-open="${w}-${d}" aria-current="${isToday}">${plateHTML(t,0,done?"✓":"",!done)}<div><b>${DAYNAMES[d]}: ${PROGRAM[w][d].title}</b><small>${TYPES[t].label}</small></div></button>`;
+    const blk = view.block != null ? view.block : Math.floor(curWeek/4);
+    view.block = blk;
+    html += `<div class="blocknav"><button id="prevB" aria-label="Previous block" ${blk===0?"disabled":""}>‹</button>
+      <div><b>Block ${blk+1} of 13</b><small>${PHASES[phaseOf(blk)]} phase, weeks ${blk*4+1}–${blk*4+4}</small></div>
+      <button id="nextB" aria-label="Next block" ${blk===12?"disabled":""}>›</button></div>`;
+    for(let w = 0; w < 4; w++){
+      const week = blk*4 + w;
+      html += `<section class="week"><h2>Week ${week+1}</h2><p class="focus">${weekFocus(week)}</p>`;
+      DAYTYPES.forEach((t, d) => {
+        const done = store.done[keyOf(week, d, cycle)], isToday = !here.before && here.week===week && here.day===d;
+        html += `<button class="day" data-open="${week}-${d}" aria-current="${isToday}">${plateHTML(t, done?"✓":"", !done)}<div><b>${DAYNAMES[d]}: ${workout(week,d).title}</b><small>${TYPES[t].label}</small></div></button>`;
       });
       html += `</section>`;
-    });
-    html += `<section class="settings"><label for="startIn">Week 1 starts on</label>
-      <input type="date" id="startIn" value="${store.start}">
-      <p>Pick a Monday. The four weeks repeat after week 4, and you’re on cycle ${cycle}.</p></section>`;
-    app.innerHTML = html;
-    const si = document.getElementById("startIn");
-    si.addEventListener("change", ()=>{ if(si.value){ const m = mondayOf(parseDate(si.value)); store.start = `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,"0")}-${String(m.getDate()).padStart(2,"0")}`; save(); render(); }});
-  } else if(view.mode === "detail"){
-    const r = workoutHTML(view.w, view.d, `${WEEKS[view.w].name}, ${DAYNAMES[view.d]}`, cycle);
-    html = `<button class="back" id="backBtn">‹ Back</button>` + stripHTML(view.w, view.d, cycle) + r.h; k = r.k;
-    app.innerHTML = html;
-    document.getElementById("backBtn").onclick = ()=>{ view = {mode:view.from||"today"}; render(); };
-  } else {
-    const w = here.before ? 0 : here.week;
-    if(here.day === null){
-      const nextW = (w+1)%4;
-      html = stripHTML(w, -1, cycle) + `<section class="rest"><h2>Rest day</h2><p>Nothing scheduled today. Monday is <b>${PROGRAM[nextW][0].title.toLowerCase()}</b>.</p><button class="link" data-open="${nextW}-0">Preview Monday</button></section>`;
-      app.innerHTML = html;
-    } else {
-      const d = here.before ? 0 : here.day;
-      const r = workoutHTML(w, d, here.before ? "Your first workout" : `${WEEKS[w].name}, today`, cycle);
-      html = stripHTML(w, d, cycle) + r.h; k = r.k;
-      app.innerHTML = html;
     }
+    html += `<section class="settings"><label for="startIn">Week 1 starts on</label><input type="date" id="startIn" value="${store.start}">
+      <p>Pick a Monday. The 52 weeks repeat after that, and you’re in year ${cycle}.</p></section>`;
+    app.innerHTML = html;
+    document.getElementById("prevB").onclick = () => { view.block = Math.max(0, blk-1); render(); };
+    document.getElementById("nextB").onclick = () => { view.block = Math.min(12, blk+1); render(); };
+    const si = document.getElementById("startIn");
+    si.addEventListener("change", () => { if(si.value){ store.start = ymd(mondayOf(parseDate(si.value))); save(); view.block = null; render(); } });
+  } else if(view.mode === "detail"){
+    r = workoutHTML(view.week, view.d, weekLabel(view.week)+", "+DAYNAMES[view.d], cycle);
+    app.innerHTML = `<button class="back" id="backBtn">‹ Back</button>` + stripHTML(view.week, view.d, cycle) + r.h;
+    document.getElementById("backBtn").onclick = () => { view = {mode:view.from||"today", block:view.block}; render(); };
+  } else if(here.day === null && !here.before){
+    const next = (curWeek + 1) % 52;
+    app.innerHTML = stripHTML(curWeek, -1, cycle) + `<section class="rest"><h2>Rest day</h2><p>Nothing scheduled today. Monday is <b>${workout(next,0).title.toLowerCase()}</b>.</p><button class="link" data-open="${next}-0">Preview Monday</button></section>`;
+  } else {
+    const d = here.before ? 0 : here.day;
+    r = workoutHTML(curWeek, d, here.before ? "Your first workout" : weekLabel(curWeek)+", today", cycle);
+    app.innerHTML = stripHTML(curWeek, d, cycle) + r.h;
   }
 
-  app.querySelectorAll("[data-open]").forEach(b=>b.onclick = ()=>{
-    const [w,d] = b.dataset.open.split("-").map(Number);
-    view = {mode:"detail", w, d, from: view.mode==="plan" ? "plan" : (view.from||"today")};
+  app.querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
+    const [week, d] = b.dataset.open.split("-").map(Number);
+    view = {mode:"detail", week, d, from: view.mode==="plan" ? "plan" : (view.from||"today"), block:view.block};
     render(); window.scrollTo(0,0);
   });
-  app.querySelectorAll("[data-timer]").forEach(b=>b.onclick = ()=>{
-    const [w,d,i] = b.dataset.timer.split("-").map(Number);
-    openTimer(PROGRAM[w][d], PROGRAM[w][d].blocks[i], DAYTYPES[d]);
+  app.querySelectorAll("[data-timer]").forEach(b => b.onclick = () => {
+    const [week, d, i] = b.dataset.timer.split("-").map(Number), wo = workout(week, d);
+    openTimer(wo, wo.blocks[i], DAYTYPES[d]);
   });
-  if(k){
-    const res = document.getElementById("res"), btn = document.getElementById("doneBtn"), msg = document.getElementById("savedMsg");
+  if(r){
+    const k = r.k, res = document.getElementById("res"), btn = document.getElementById("doneBtn"), msg = document.getElementById("savedMsg");
     res.value = store.results[k] || "";
-    res.addEventListener("input", ()=>{ store.results[k] = res.value; save(); msg.textContent = "Result saved"; });
-    btn.onclick = ()=>{
-      store.done[k] = !store.done[k];
-      if(!store.done[k]) delete store.done[k];
+    res.addEventListener("input", () => { store.results[k] = res.value; store.ids[k] = r.id; save(); msg.textContent = "Result saved"; });
+    btn.onclick = () => {
+      if(store.done[k]) delete store.done[k]; else { store.done[k] = true; store.ids[k] = r.id; }
       save(); render();
       const m = document.getElementById("savedMsg"); if(m) m.textContent = store.done[k] ? "Nice work. Marked complete." : "Marked not complete.";
     };
   }
 }
-document.getElementById("tabToday").onclick = ()=>{ view = {mode:"today"}; render(); };
-document.getElementById("tabPlan").onclick = ()=>{ view = {mode:"plan"}; render(); };
+document.getElementById("tabToday").onclick = () => { view = {mode:"today"}; render(); };
+document.getElementById("tabPlan").onclick = () => { view = {mode:"plan"}; render(); };
 
 /* ---------- timer ---------- */
 const T = {el:document.getElementById("timer"), clock:document.getElementById("tClock"), phase:document.getElementById("tPhase"), meta:document.getElementById("tMeta"), title:document.getElementById("tTitle"), start:document.getElementById("tStart")};
 let tm = null, raf = null, actx = null, wake = null;
 const PREP = 10;
-
 function beep(freq, dur){
   try{
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
@@ -404,73 +589,64 @@ function beep(freq, dur){
     o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + dur);
   }catch(e){}
 }
-const fmt = s=>{ s = Math.max(0, Math.ceil(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
-
+const fmt = s => { s = Math.max(0, Math.ceil(s)); return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); };
 function totalOf(t){
   if(t.mode==="amrap"||t.mode==="countdown"||t.mode==="emom") return t.min*60;
   if(t.mode==="fortime") return t.cap*60;
-  const sets = t.sets||1; return sets*t.rounds*(t.work+t.rest) + (sets-1)*(t.setRest||0);
+  return t.sets*t.rounds*(t.work+t.rest) + (t.sets-1)*t.setRest;
 }
-
 function stateAt(t, e){
   if(e < 0) return {clock:-e, phase:"Get ready", meta:"", cue:"prep"};
   const total = totalOf(t);
   if(e >= total) return {clock:0, phase:"Time", meta: t.mode==="fortime" ? "Time cap reached" : "Done", done:true};
-  if(t.mode==="amrap"||t.mode==="countdown") return {clock: total-e, phase: t.mode==="amrap" ? "As many rounds as possible" : "Keep moving", meta: fmt(e)+" elapsed", cue:"down"};
-  if(t.mode==="fortime") return {clock: e, up:true, phase:"Go", meta:"Cap "+t.cap+":00", cue:"up"};
+  if(t.mode==="amrap"||t.mode==="countdown") return {clock:total-e, phase: t.mode==="amrap" ? "As many rounds as possible" : "Keep moving", meta:fmt(e)+" elapsed", cue:"down"};
+  if(t.mode==="fortime") return {clock:e, up:true, phase:"Go", meta:"Cap "+t.cap+":00", cue:"up"};
   if(t.mode==="emom"){
-    const m = Math.floor(e/60), st = t.stations[m % t.stations.length];
-    return {clock: 60 - (e%60), phase: st, meta:"Minute "+(m+1)+" of "+t.min, slot:m, cue:"down"};
+    const ev = t.every, n = Math.floor(e/ev), count = Math.round(t.min*60/ev);
+    return {clock: ev - (e % ev), phase: t.stations[n % t.stations.length], meta:(ev===60?"Minute ":"Round ")+(n+1)+" of "+count, slot:n, cue:"down"};
   }
-  // tabata
-  const cyc = t.work+t.rest, setLen = t.rounds*cyc, sr = t.setRest||0;
+  const cyc = t.work + t.rest, setLen = t.rounds*cyc;
   let x = e, set = 0;
-  while(set < (t.sets||1)-1 && x >= setLen + sr){ x -= setLen + sr; set++; }
-  const label = t.labels[set % t.labels.length];
-  if(x >= setLen){ const left = setLen + sr - x; return {clock:left, phase:"Rest", meta:"Next: "+t.labels[(set+1)%t.labels.length], slot:"r"+set, cue:"down"}; }
+  while(set < t.sets-1 && x >= setLen + t.setRest){ x -= setLen + t.setRest; set++; }
+  if(x >= setLen) return {clock: setLen + t.setRest - x, phase:"Rest", meta:"Next: "+t.labels[(set+1) % t.labels.length], slot:"r"+set, cue:"down"};
   const r = Math.floor(x/cyc), inR = x % cyc, working = inR < t.work;
-  return {clock: working ? t.work-inR : cyc-inR, phase: working ? label : "Rest", meta:"Round "+(r+1)+" of "+t.rounds+((t.sets||1)>1?", set "+(set+1)+" of "+t.sets:""), slot:set+"-"+r+"-"+(working?"w":"r"), cue:"down"};
+  const label = t.alt ? t.labels[r % t.labels.length] : t.labels[set % t.labels.length];
+  return {clock: working ? t.work-inR : cyc-inR, phase: working ? label : "Rest", meta:"Round "+(r+1)+" of "+t.rounds+(t.sets>1 ? ", set "+(set+1)+" of "+t.sets : ""), slot:set+"-"+r+"-"+(working?"w":"r"), cue:"down"};
 }
-
-function elapsed(){ return tm.acc + (tm.running ? (performance.now()-tm.t0)/1000 : 0) - PREP; }
-
+const elapsed = () => tm.acc + (tm.running ? (performance.now()-tm.t0)/1000 : 0) - PREP;
 function tick(){
   const e = elapsed(), s = stateAt(tm.spec, e);
-  T.clock.textContent = s.up ? fmt(Math.floor(s.clock)) : fmt(s.clock);
+  T.clock.textContent = fmt(s.up ? Math.floor(s.clock) : s.clock);
   T.phase.textContent = s.phase; T.meta.textContent = s.meta;
   const sec = Math.ceil(s.clock);
   if(tm.running){
-    if(s.slot !== undefined && s.slot !== tm.lastSlot && tm.lastSlot !== undefined) beep(880,.35);
-    else if(s.cue==="prep" && sec !== tm.lastSec && sec<=3 && sec>0) beep(520,.12);
-    else if(e>=0 && tm.lastE<0) beep(880,.45);
-    else if(s.cue==="down" && sec !== tm.lastSec && sec<=3 && sec>0 && (s.slot!==undefined || s.clock < 4)) beep(520,.1);
-    if(s.done){ beep(660,.6); tm.running=false; T.start.textContent="Start"; releaseWake(); }
+    if(e >= 0 && tm.lastE < 0) beep(880,.45);
+    else if(s.slot !== undefined && tm.lastSlot !== undefined && s.slot !== tm.lastSlot) beep(880,.35);
+    else if(sec !== tm.lastSec && sec <= 3 && sec > 0 && (s.cue==="prep" || (s.cue==="down" && (s.slot !== undefined || s.clock < 4)))) beep(520,.1);
+    if(s.done){ beep(660,.6); tm.running = false; T.start.textContent = "Start"; releaseWake(); }
   }
   tm.lastSlot = s.slot; tm.lastSec = sec; tm.lastE = e;
   if(tm.running) raf = requestAnimationFrame(tick);
 }
 async function holdWake(){ try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){} }
 function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
-
 function openTimer(wo, block, type){
   tm = {spec:block.timer, acc:0, running:false, t0:0};
   T.el.className = "timer on " + TYPES[type].cls;
   T.title.textContent = wo.title + ": " + block.name + " (" + block.fmt + ")";
-  T.start.textContent = "Start";
-  tick();
-  T.start.focus();
+  T.start.textContent = "Start"; tick(); T.start.focus();
 }
-T.start.onclick = ()=>{
+T.start.onclick = () => {
   if(!tm) return;
-  if(tm.running){ tm.acc += (performance.now()-tm.t0)/1000; tm.running=false; T.start.textContent="Resume"; cancelAnimationFrame(raf); releaseWake(); }
-  else{ if(stateAt(tm.spec, elapsed()).done){ tm.acc=0; } tm.t0 = performance.now(); tm.running = true; T.start.textContent="Pause"; beep(1,.01); holdWake(); tick(); }
+  if(tm.running){ tm.acc += (performance.now()-tm.t0)/1000; tm.running = false; T.start.textContent = "Resume"; cancelAnimationFrame(raf); releaseWake(); }
+  else { if(stateAt(tm.spec, elapsed()).done) tm.acc = 0; tm.t0 = performance.now(); tm.running = true; T.start.textContent = "Pause"; beep(1,.01); holdWake(); tick(); }
 };
-document.getElementById("tReset").onclick = ()=>{ if(!tm) return; cancelAnimationFrame(raf); tm = {spec:tm.spec, acc:0, running:false, t0:0}; T.start.textContent="Start"; releaseWake(); tick(); };
-document.getElementById("tClose").onclick = ()=>{ cancelAnimationFrame(raf); if(tm) tm.running=false; releaseWake(); T.el.className = "timer"; };
-document.addEventListener("keydown", e=>{ if(e.key==="Escape" && T.el.classList.contains("on")) document.getElementById("tClose").click(); });
+document.getElementById("tReset").onclick = () => { if(!tm) return; cancelAnimationFrame(raf); tm = {spec:tm.spec, acc:0, running:false, t0:0}; T.start.textContent = "Start"; releaseWake(); tick(); };
+document.getElementById("tClose").onclick = () => { cancelAnimationFrame(raf); if(tm) tm.running = false; releaseWake(); T.el.className = "timer"; };
+document.addEventListener("keydown", e => { if(e.key==="Escape" && T.el.classList.contains("on")) document.getElementById("tClose").click(); });
 
 render();
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 </script>
 </body>
 </html>
