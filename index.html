@@ -136,6 +136,14 @@ button{cursor:pointer}
 .blocknav b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:26px;line-height:1.1}
 .blocknav small{color:var(--muted);font-size:14px}
 .last{margin:8px 0 0;font-size:14px;color:var(--muted)}
+.share-btn{width:100%;margin-top:10px;border:0;border-radius:12px;padding:12px;font-weight:700;font-size:16px;background:var(--ink);color:var(--bg);display:flex;align-items:center;justify-content:center;gap:8px}
+.share-btn svg{width:18px;height:18px}
+.sheet{position:fixed;inset:0;z-index:60;background:rgba(10,12,16,.82);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
+.sheet.on{display:flex}
+.sheet img{max-width:100%;max-height:calc(100% - 90px);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.sheet .ctrl{display:flex;gap:10px;width:100%;max-width:420px}
+.sheet .ctrl button{flex:1;border:0;border-radius:14px;padding:14px;font-weight:700;font-size:17px;background:#2A313B;color:#E9EDF1}
+.sheet .ctrl .primary{background:#E9EDF1;color:#1D232B;flex:2}
 </style>
 </head>
 <body>
@@ -148,6 +156,15 @@ button{cursor:pointer}
     </div>
   </div>
   <main id="app"></main>
+</div>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Share card">
+  <img id="shareImg" alt="Workout share card">
+  <div class="ctrl">
+    <button id="sClose">Close</button>
+    <button id="sSave">Save</button>
+    <button class="primary" id="sShare">Share</button>
+  </div>
 </div>
 
 <div class="timer" id="timer" role="dialog" aria-modal="true" aria-label="Workout timer">
@@ -484,6 +501,7 @@ function lastResult(id, except){
 const app = document.getElementById("app");
 let view = {mode:"today"};
 const plateHTML = (type, text, hollow) => `<div class="plate ${TYPES[type].cls}${hollow?" hollow":""}">${text?`<div class="tick">${text}</div>`:""}</div>`;
+const shareIcon = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>';
 const playIcon = '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -502,8 +520,9 @@ function workoutHTML(week, d, label, cycle){
     <input id="res" placeholder="Time, rounds, or weights used" autocomplete="off">
     ${prev ? `<p class="last">Last time you did this: ${esc(prev)}</p>` : ""}
     <div class="row"><button class="done-btn" id="doneBtn" aria-pressed="${done}">${done?"Completed":"Mark complete"}</button></div>
+    ${done ? `<button class="share-btn" id="shareBtn">${shareIcon}Make share card</button>` : ""}
     <div class="saved" id="savedMsg" aria-live="polite"></div></section>`;
-  return {h, k, id:wo.id};
+  return {h, k, id:wo.id, week, d};
 }
 function stripHTML(week, cur, cycle){
   return `<nav class="strip" aria-label="This week">` + DAYTYPES.map((t, d) => {
@@ -572,6 +591,8 @@ function render(){
       save(); render();
       const m = document.getElementById("savedMsg"); if(m) m.textContent = store.done[k] ? "Nice work. Marked complete." : "Marked not complete.";
     };
+    const sb = document.getElementById("shareBtn");
+    if(sb) sb.onclick = () => openShare(r.week, r.d, cycle);
   }
 }
 document.getElementById("tabToday").onclick = () => { view = {mode:"today"}; render(); };
@@ -644,6 +665,135 @@ T.start.onclick = () => {
 document.getElementById("tReset").onclick = () => { if(!tm) return; cancelAnimationFrame(raf); tm = {spec:tm.spec, acc:0, running:false, t0:0}; T.start.textContent = "Start"; releaseWake(); tick(); };
 document.getElementById("tClose").onclick = () => { cancelAnimationFrame(raf); if(tm) tm.running = false; releaseWake(); T.el.className = "timer"; };
 document.addEventListener("keydown", e => { if(e.key==="Escape" && T.el.classList.contains("on")) document.getElementById("tClose").click(); });
+
+/* ---------- share card ---------- */
+const CARD_COLORS = {movement:"#3FA86D", barbell:"#4A86D8", yoga:"#CFCBBE", body:"#EDBC3A", heavy:"#E0484E"};
+const TAGLINES = {
+  movement:["Miles in the bank.","Easy day, done right.","Motion is lotion."],
+  barbell:["Barbell 0, me 1.","Chalk dust settled.","Thrusters were thrust."],
+  yoga:["Bendier than yesterday.","Stretched and unbothered.","Hips: opened."],
+  body:["No equipment, no excuses.","Bodyweight, full effort.","Burpees survived."],
+  heavy:["Heavy things were lifted.","Iron moved.","Plates loaded, plates conquered."]
+};
+function dateOf(week, d, cycle){ const s = parseDate(store.start); s.setDate(s.getDate() + ((cycle-1)*52 + week)*7 + d); return s; }
+function streakAt(week, d, cycle){
+  let n = 0, w = week, dd = d, c = cycle;
+  while(store.done[keyOf(w, dd, c)]){
+    n++; dd--;
+    if(dd < 0){ dd = 4; w--; if(w < 0){ w = 51; c--; if(c < 1) break; } }
+  }
+  return n;
+}
+function yearCount(cycle){ return Object.keys(store.done).filter(k => k.startsWith("y"+cycle+"w")).length; }
+function cardLines(wo, d){
+  const skip = /^(Warm-up|Cooldown|Mobility)$/;
+  const blocks = wo.blocks.filter(b => !skip.test(b.name));
+  if(d === 4) return {fmt:"Strength session", lines:blocks.map(b => b.name+": "+b.fmt)};
+  const main = blocks.find(b => /^(Workout|Benchmark|Test|Steady state|Intervals|Long|Holds|Flow)$/.test(b.name)) || blocks[blocks.length-1] || wo.blocks[0];
+  return {fmt:main.fmt, lines:main.lines};
+}
+function wrap(ctx, text, maxW){
+  const words = String(text).split(/\s+/), out = []; let line = "";
+  for(const w of words){ const t = line ? line+" "+w : w; if(ctx.measureText(t).width > maxW && line){ out.push(line); line = w; } else line = t; }
+  if(line) out.push(line); return out;
+}
+function plate(ctx, x, y, r, color, filled){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+  if(filled){ ctx.fillStyle = color; ctx.fill(); } else { ctx.lineWidth = r*.16; ctx.strokeStyle = color; ctx.beginPath(); ctx.arc(x, y, r - r*.08, 0, Math.PI*2); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(x, y, r*.68, 0, Math.PI*2); ctx.lineWidth = Math.max(2, r*.04); ctx.strokeStyle = filled ? "rgba(255,255,255,.35)" : color; ctx.globalAlpha = filled ? 1 : .4; ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(x, y, r*.2, 0, Math.PI*2); ctx.fillStyle = "#171B21"; ctx.fill();
+  ctx.restore();
+}
+async function buildCard(week, d, cycle){
+  try{ await Promise.all([document.fonts.load('800 120px "Barlow Condensed"'), document.fonts.load('700 60px "Barlow Condensed"'), document.fonts.load('600 40px Barlow'), document.fonts.load('400 40px Barlow')]); }catch(e){}
+  const W = 1080, H = 1350, P = 80, type = DAYTYPES[d], col = CARD_COLORS[type];
+  const wo = workout(week, d), k = keyOf(week, d, cycle), res = (store.results[k] || "").trim(), prev = lastResult(wo.id, k);
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d"), CD = '"Barlow Condensed","Arial Narrow",sans-serif', BD = 'Barlow,"Segoe UI",Roboto,Arial,sans-serif';
+  const ink = "#E9EDF1", muted = "#9AA4B0", dark = "#1D232B";
+
+  ctx.fillStyle = "#171B21"; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = col; ctx.fillRect(0, 0, W, 14);
+  plate(ctx, W - 40, 250, 300, col, true);
+
+  ctx.fillStyle = ink; ctx.font = "700 34px "+CD; ctx.textBaseline = "alphabetic";
+  ctx.fillText("MACLEOD HIIT GARAGE", P, 110);
+  const dt = dateOf(week, d, cycle);
+  ctx.fillStyle = muted; ctx.font = "500 32px "+BD;
+  ctx.fillText(dt.toLocaleDateString("en-US", {weekday:"long", month:"short", day:"numeric", year:"numeric"}), P, 160);
+  ctx.fillText("Week "+(week+1)+" of 52, "+PHASES[phaseOf(Math.floor(week/4))]+" phase", P, 204);
+
+  ctx.fillStyle = ink;
+  let y = 360, fs = 132, tl;
+  for(fs of [132, 112, 96, 84]){ ctx.font = "800 "+fs+"px "+CD; tl = wrap(ctx, wo.title.toUpperCase(), W - P*2 - 120); if(tl.length <= 2) break; }
+  tl = tl.slice(0, 2);
+  tl.forEach(l => { ctx.fillText(l, P, y); y += fs*.9; });
+  y -= 30;
+  ctx.fillStyle = col; ctx.font = "700 40px "+CD;
+  ctx.fillText(TYPES[type].label.toUpperCase(), P, y + 30); y += 70;
+
+  // result box
+  const boxY = y, boxH = prev ? 230 : 190;
+  ctx.fillStyle = col; roundRect(ctx, P, boxY, W - P*2, boxH, 26); ctx.fill();
+  const onCol = (type === "yoga" || type === "body") ? dark : "#FFFFFF";
+  ctx.fillStyle = onCol; ctx.globalAlpha = .8; ctx.font = "700 30px "+CD; ctx.fillText("RESULT", P + 36, boxY + 58); ctx.globalAlpha = 1;
+  ctx.font = "800 84px "+CD;
+  let rl = wrap(ctx, res || "Done.", W - P*2 - 72);
+  if(rl.length > 1){ ctx.font = "800 60px "+CD; rl = wrap(ctx, res, W - P*2 - 72).slice(0, 2); }
+  rl.forEach((l, i) => ctx.fillText(l, P + 36, boxY + (rl.length > 1 ? 118 + i*60 : 140)));
+  if(prev){ ctx.font = "600 30px "+BD; ctx.globalAlpha = .85; ctx.fillText(("Last time: "+prev).slice(0, 60), P + 36, boxY + boxH - 30); ctx.globalAlpha = 1; }
+  y = boxY + boxH + 64;
+
+  // breakdown
+  const cl = cardLines(wo, d);
+  ctx.fillStyle = muted; ctx.font = "700 30px "+CD; ctx.fillText(cl.fmt.toUpperCase(), P, y); y += 50;
+  ctx.fillStyle = ink; ctx.font = "500 34px "+BD;
+  const stop = H - 325; let used = 0;
+  for(const line of cl.lines){
+    if(y > stop) break;
+    const parts = wrap(ctx, line, W - P*2 - 40);
+    for(const p of parts){ if(y > stop) break; ctx.fillStyle = col; if(p === parts[0]) ctx.fillRect(P, y - 22, 14, 14); ctx.fillStyle = ink; ctx.fillText(p, P + 34, y); y += 46; used++; }
+  }
+
+  // stats
+  const sy = H - 300, tw = (W - P*2 - 40) / 3;
+  const weekDone = [0,1,2,3,4].filter(i => store.done[keyOf(week, i, cycle)]).length;
+  const streak = streakAt(week, d, cycle);
+  [["STREAK", streak+(streak===1?" day":" days")],["THIS WEEK", weekDone+" of 5"],["THIS YEAR", yearCount(cycle)+" done"]].forEach((s, i) => {
+    const x = P + i*(tw + 20);
+    ctx.fillStyle = "#222831"; roundRect(ctx, x, sy, tw, 130, 20); ctx.fill();
+    ctx.fillStyle = muted; ctx.font = "700 26px "+CD; ctx.fillText(s[0], x + 26, sy + 44);
+    ctx.fillStyle = ink; ctx.font = "800 52px "+CD; ctx.fillText(s[1], x + 26, sy + 104);
+  });
+
+  // week plates + tagline
+  const py = H - 100;
+  DAYTYPES.forEach((t, i) => plate(ctx, P + 34 + i*84, py, 32, CARD_COLORS[t], !!store.done[keyOf(week, i, cycle)]));
+  const tags = TAGLINES[type], tag = tags[(week*5 + d) % tags.length];
+  ctx.fillStyle = ink; ctx.font = "700 44px "+CD; ctx.textAlign = "right";
+  ctx.fillText(tag, W - P, py + 16); ctx.textAlign = "left";
+  return cv;
+}
+function roundRect(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x+r, y); ctx.arcTo(x+w, y, x+w, y+h, r); ctx.arcTo(x+w, y+h, x, y+h, r); ctx.arcTo(x, y+h, x, y, r); ctx.arcTo(x, y, x+w, y, r); ctx.closePath(); }
+
+const S = {el:document.getElementById("sheet"), img:document.getElementById("shareImg")};
+let shareFile = null;
+async function openShare(week, d, cycle){
+  const cv = await buildCard(week, d, cycle);
+  const blob = await new Promise(res => cv.toBlob(res, "image/png"));
+  const name = "macleod-hiit-"+ymd(dateOf(week, d, cycle))+".png";
+  shareFile = new File([blob], name, {type:"image/png"});
+  if(S.img.src) URL.revokeObjectURL(S.img.src);
+  S.img.src = URL.createObjectURL(blob);
+  S.el.classList.add("on");
+  const canShare = navigator.canShare && navigator.canShare({files:[shareFile]});
+  document.getElementById("sShare").style.display = canShare ? "" : "none";
+}
+document.getElementById("sShare").onclick = async () => { try{ await navigator.share({files:[shareFile], title:"MacLeod HIIT Garage"}); }catch(e){} };
+document.getElementById("sSave").onclick = () => { const a = document.createElement("a"); a.href = S.img.src; a.download = shareFile.name; document.body.appendChild(a); a.click(); a.remove(); };
+document.getElementById("sClose").onclick = () => S.el.classList.remove("on");
+document.addEventListener("keydown", e => { if(e.key==="Escape" && S.el.classList.contains("on")) S.el.classList.remove("on"); });
 
 render();
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
