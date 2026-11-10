@@ -140,7 +140,7 @@ button{cursor:pointer}
 .share-btn svg{width:18px;height:18px}
 .sheet{position:fixed;inset:0;z-index:60;background:rgba(10,12,16,.82);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 16px)}
 .sheet.on{display:flex}
-.sheet img{max-width:100%;max-height:calc(100% - 90px);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.sheet img{max-width:100%;max-height:calc(100% - 90px);object-fit:contain;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .sheet .ctrl{display:flex;gap:10px;width:100%;max-width:420px}
 .sheet .ctrl button{flex:1;border:0;border-radius:14px;padding:14px;font-weight:700;font-size:17px;background:#2A313B;color:#E9EDF1}
 .sheet .ctrl .primary{background:#E9EDF1;color:#1D232B;flex:2}
@@ -707,7 +707,7 @@ function plate(ctx, x, y, r, color, filled){
 }
 async function buildCard(week, d, cycle){
   try{ await Promise.all([document.fonts.load('800 120px "Barlow Condensed"'), document.fonts.load('700 60px "Barlow Condensed"'), document.fonts.load('600 40px Barlow'), document.fonts.load('400 40px Barlow')]); }catch(e){}
-  const W = 1080, H = 1350, P = 80, type = DAYTYPES[d], col = CARD_COLORS[type];
+  const W = 1080, H = 1920, P = 80, type = DAYTYPES[d], col = CARD_COLORS[type];
   const wo = workout(week, d), k = keyOf(week, d, cycle), res = (store.results[k] || "").trim(), prev = lastResult(wo.id, k);
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const ctx = cv.getContext("2d"), CD = '"Barlow Condensed","Arial Narrow",sans-serif', BD = 'Barlow,"Segoe UI",Roboto,Arial,sans-serif';
@@ -745,16 +745,34 @@ async function buildCard(week, d, cycle){
   if(prev){ ctx.font = "600 30px "+BD; ctx.globalAlpha = .85; ctx.fillText(("Last time: "+prev).slice(0, 60), P + 36, boxY + boxH - 30); ctx.globalAlpha = 1; }
   y = boxY + boxH + 64;
 
-  // breakdown
-  const cl = cardLines(wo, d);
-  ctx.fillStyle = muted; ctx.font = "700 30px "+CD; ctx.fillText(cl.fmt.toUpperCase(), P, y); y += 50;
-  ctx.fillStyle = ink; ctx.font = "500 34px "+BD;
-  const stop = H - 325; let used = 0;
-  for(const line of cl.lines){
-    if(y > stop) break;
-    const parts = wrap(ctx, line, W - P*2 - 40);
-    for(const p of parts){ if(y > stop) break; ctx.fillStyle = col; if(p === parts[0]) ctx.fillRect(P, y - 22, 14, 14); ctx.fillStyle = ink; ctx.fillText(p, P + 34, y); y += 46; used++; }
+  // full workout breakdown
+  const skip = /^(Warm-up|Cooldown|Mobility)$/;
+  const blocks = wo.blocks.filter(x => !skip.test(x.name));
+  const stop = H - 360, lh = 44;
+  ctx.fillStyle = muted; ctx.font = "700 30px "+CD; ctx.fillText("THE WORKOUT", P, y); y += 58;
+  let cut = false;
+  for(const blk of blocks){
+    if(y > stop){ cut = true; break; }
+    ctx.font = "700 40px "+CD; ctx.fillStyle = col;
+    const nm = blk.name.toUpperCase(); ctx.fillText(nm, P, y);
+    const nw = ctx.measureText(nm+"  ").width;
+    ctx.fillStyle = muted; ctx.font = "600 32px "+BD;
+    const fl = wrap(ctx, blk.fmt, W - P*2 - nw);
+    ctx.fillText(fl[0], P + nw, y); y += lh + 4;
+    if(d === 4 && blk.name !== "Finisher"){ y += 4; continue; }
+    ctx.font = "500 33px "+BD;
+    for(const line of blk.lines){
+      for(const [i, p] of wrap(ctx, line, W - P*2 - 34).entries()){
+        if(y > stop){ cut = true; break; }
+        if(i === 0){ ctx.fillStyle = col; ctx.fillRect(P, y - 22, 13, 13); }
+        ctx.fillStyle = ink; ctx.fillText(p, P + 34, y); y += lh;
+      }
+      if(cut) break;
+    }
+    if(cut) break;
+    y += 22;
   }
+  if(cut){ ctx.fillStyle = muted; ctx.font = "600 30px "+BD; ctx.fillText("and more…", P + 34, Math.min(y, stop + lh)); }
 
   // stats
   const sy = H - 300, tw = (W - P*2 - 40) / 3;
