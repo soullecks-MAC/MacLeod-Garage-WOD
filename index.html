@@ -118,17 +118,16 @@ button{cursor:pointer}
 .back{border:0;background:none;padding:6px 0;font-weight:600;color:var(--muted)}
 
 /* timer overlay */
-.timer{position:fixed;inset:0;z-index:50;background:var(--c,var(--blue));color:var(--on-accent);display:none;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 20px calc(env(safe-area-inset-bottom,0px) + 24px)}
-.timer.on{display:flex}
+.timer{display:none;margin-top:14px;border-radius:14px;background:var(--c,var(--blue));color:var(--on-accent);padding:14px 16px 16px}
+.timer.on{display:block}
 .timer.t-yoga,.timer.t-body{color:#1D232B}
-.timer .tt{font-weight:600;font-size:16px;opacity:.85}
-.timer .phase{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:clamp(26px,7vw,40px);line-height:1.1;margin-top:6px;min-height:2.2em}
-.timer .clock{flex:1;display:grid;place-items:center;font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:clamp(110px,34vw,240px);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.timer .meta{text-align:center;font-weight:600;font-size:18px;opacity:.85;margin-bottom:18px;min-height:1.5em}
-.timer .ctrl{display:flex;gap:10px}
-.timer .ctrl button{flex:1;border:0;border-radius:14px;padding:16px;font-weight:700;font-size:18px;background:rgba(0,0,0,.22);color:inherit}
+.timer .phase{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:24px;line-height:1.15;min-height:1.15em}
+.timer .clock{font-family:"Barlow Condensed",sans-serif;font-weight:800;font-size:clamp(68px,22vw,104px);line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin:4px 0 2px}
+.timer .meta{font-weight:600;font-size:15px;opacity:.85;margin-bottom:12px;min-height:1.4em}
+.timer .ctrl{display:flex;gap:8px}
+.timer .ctrl button{flex:1;border:0;border-radius:12px;padding:12px 8px;font-weight:700;font-size:16px;background:rgba(0,0,0,.22);color:inherit}
 .timer .ctrl .primary{background:rgba(255,255,255,.92);color:#1D232B;flex:2}
-.timer .x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;border:0;background:rgba(0,0,0,.18);color:inherit;width:44px;height:44px;border-radius:50%;font-size:22px;line-height:1}
+.go[hidden]{display:none}
 .blocknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 18px}
 .blocknav button{border:0;background:var(--surface);border-radius:999px;width:44px;height:44px;font-size:22px;font-weight:700}
 .blocknav button:disabled{opacity:.35}
@@ -167,13 +166,12 @@ button{cursor:pointer}
   </div>
 </div>
 
-<div class="timer" id="timer" role="dialog" aria-modal="true" aria-label="Workout timer">
-  <button class="x" id="tClose" aria-label="Close timer">×</button>
-  <div class="tt" id="tTitle"></div>
+<div class="timer" id="timer" role="region" aria-label="Timer">
   <div class="phase" id="tPhase"></div>
-  <div class="clock" id="tClock">0:00</div>
+  <div class="clock" id="tClock" aria-live="off">0:00</div>
   <div class="meta" id="tMeta"></div>
   <div class="ctrl">
+    <button id="tClose">Close</button>
     <button id="tReset">Reset</button>
     <button class="primary" id="tStart">Start</button>
   </div>
@@ -580,8 +578,9 @@ function render(){
   });
   app.querySelectorAll("[data-timer]").forEach(b => b.onclick = () => {
     const [week, d, i] = b.dataset.timer.split("-").map(Number), wo = workout(week, d);
-    openTimer(wo, wo.blocks[i], DAYTYPES[d]);
+    openTimer(wo.blocks[i], DAYTYPES[d], b.dataset.timer);
   });
+  placeTimer();
   if(r){
     const k = r.k, res = document.getElementById("res"), btn = document.getElementById("doneBtn"), msg = document.getElementById("savedMsg");
     res.value = store.results[k] || "";
@@ -599,7 +598,7 @@ document.getElementById("tabToday").onclick = () => { view = {mode:"today"}; ren
 document.getElementById("tabPlan").onclick = () => { view = {mode:"plan"}; render(); };
 
 /* ---------- timer ---------- */
-const T = {el:document.getElementById("timer"), clock:document.getElementById("tClock"), phase:document.getElementById("tPhase"), meta:document.getElementById("tMeta"), title:document.getElementById("tTitle"), start:document.getElementById("tStart")};
+const T = {el:document.getElementById("timer"), clock:document.getElementById("tClock"), phase:document.getElementById("tPhase"), meta:document.getElementById("tMeta"), start:document.getElementById("tStart")};
 let tm = null, raf = null, actx = null, wake = null;
 const PREP = 10;
 function beep(freq, dur){
@@ -651,11 +650,20 @@ function tick(){
 }
 async function holdWake(){ try{ if("wakeLock" in navigator) wake = await navigator.wakeLock.request("screen"); }catch(e){} }
 function releaseWake(){ try{ wake && wake.release(); }catch(e){} wake = null; }
-function openTimer(wo, block, type){
-  tm = {spec:block.timer, acc:0, running:false, t0:0};
-  T.el.className = "timer on " + TYPES[type].cls;
-  T.title.textContent = wo.title + ": " + block.name + " (" + block.fmt + ")";
-  T.start.textContent = "Start"; tick(); T.start.focus();
+function openTimer(block, type, loc){
+  if(tm && tm.loc !== loc){ cancelAnimationFrame(raf); releaseWake(); }
+  tm = {spec:block.timer, acc:0, running:false, t0:0, loc, type};
+  T.start.textContent = "Start"; placeTimer(); tick();
+  T.el.scrollIntoView({block:"nearest", behavior:"smooth"});
+}
+// Puts the timer inside the block it belongs to (re-attaches after the page redraws).
+function placeTimer(){
+  app.querySelectorAll(".go[hidden]").forEach(g => g.hidden = false);
+  const btn = tm ? app.querySelector('[data-timer="'+tm.loc+'"]') : null;
+  if(!btn){ T.el.className = "timer"; if(T.el.parentNode) T.el.remove(); return; }
+  btn.hidden = true;
+  btn.parentNode.appendChild(T.el);
+  T.el.className = "timer on " + TYPES[tm.type].cls;
 }
 T.start.onclick = () => {
   if(!tm) return;
@@ -663,8 +671,7 @@ T.start.onclick = () => {
   else { if(stateAt(tm.spec, elapsed()).done) tm.acc = 0; tm.t0 = performance.now(); tm.running = true; T.start.textContent = "Pause"; beep(1,.01); holdWake(); tick(); }
 };
 document.getElementById("tReset").onclick = () => { if(!tm) return; cancelAnimationFrame(raf); tm = {spec:tm.spec, acc:0, running:false, t0:0}; T.start.textContent = "Start"; releaseWake(); tick(); };
-document.getElementById("tClose").onclick = () => { cancelAnimationFrame(raf); if(tm) tm.running = false; releaseWake(); T.el.className = "timer"; };
-document.addEventListener("keydown", e => { if(e.key==="Escape" && T.el.classList.contains("on")) document.getElementById("tClose").click(); });
+document.getElementById("tClose").onclick = () => { cancelAnimationFrame(raf); releaseWake(); tm = null; placeTimer(); };
 
 /* ---------- share card ---------- */
 const CARD_COLORS = {movement:"#3FA86D", barbell:"#4A86D8", yoga:"#CFCBBE", body:"#EDBC3A", heavy:"#E0484E"};
